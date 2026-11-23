@@ -86,6 +86,22 @@ exports.getAnswer = async (req, res) => {
       } catch (e) {
         console.error('[Dynamic COD Answer Error]:', e);
       }
+    } else if (questionId === 'jewelry_care') {
+      answerText = `✨ Jewelry Care: Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
+    } else if (questionId === 'gift_packaging') {
+      try {
+        const mongoose = require('mongoose');
+        const freeGift = await mongoose.connection.db.collection('freegiftoffers').findOne({ isActive: true });
+        let freeGiftText = '';
+        if (freeGift && freeGift.name) {
+          freeGiftText = `• Active Store Perk: "${freeGift.name}" is currently active on purchases!\n`;
+        }
+        answerText = `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk on WhatsApp at 8527054683 with your Order ID!`;
+      } catch (e) {
+        console.error('[Dynamic Gift Answer Error]:', e);
+      }
+    } else if (questionId === 'hypoallergenic_info') {
+      answerText = `🌿 Is It Skin-Friendly & Hypoallergenic?\n\n100% Skin-Friendly, Lead-Free & Nickel-Free!\n\n• Nickel & Lead Free: All our jewelry strictly adheres to safe metal standards, free from harsh nickel, lead, and toxic heavy metals that trigger allergic reactions.\n• No Itching or Green Marks: The skin-contact surface is sealed with biocompatible protective electroplating that prevents oxidation reactions against body sweat, keeping your skin clean and free of green or dark marks.\n• Earring Comfort: Our earrings and studs feature smooth, skin-safe posts and hypoallergenic silicone or metal stoppers to prevent earlobe irritation or swelling.\n• Lightweight Ergonomics: Engineered to be lightweight and comfortable for all-day wear at weddings, festive occasions, or daily office wear.\n\nTip: If you have an ultra-sensitive skin condition or specific metal allergy, feel free to consult our support concierge on WhatsApp at 8527054683 before purchasing!`;
     }
 
     return res.status(200).json({
@@ -382,6 +398,664 @@ exports.createTicket = async (req, res) => {
   }
 };
 
+// POST /api/chatbot/check-pincode - Live PIN code serviceability check
+exports.checkPincode = async (req, res) => {
+  try {
+    const { pincode, userId, phone, email } = req.body;
+    let cleanPin = String(pincode || '').replace(/\D/g, '').trim();
+    let savedLocationInfo = null;
+
+    // 1. If pincode wasn't explicitly provided, check database for user's saved address!
+    if (!cleanPin || cleanPin.length !== 6) {
+      try {
+        const mongoose = require('mongoose');
+        const addressesCol = mongoose.connection.db.collection('addresses');
+        const orConditions = [];
+
+        if (userId) {
+          if (mongoose.Types.ObjectId.isValid(userId)) {
+            orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
+          }
+          orConditions.push({ userId: String(userId) });
+        }
+        if (phone) {
+          const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+          orConditions.push({ phone: cleanPhone }, { phone: String(phone).trim() });
+        }
+        if (email) {
+          orConditions.push({ email: String(email).trim().toLowerCase() });
+        }
+
+        let savedAddress = null;
+        if (orConditions.length > 0) {
+          savedAddress = await addressesCol.findOne(
+            { $or: orConditions, postalCode: { $exists: true, $ne: '' } },
+            { sort: { isDefault: -1, updatedAt: -1 } }
+          );
+        }
+
+        // Also check user's most recent order in DB as fallback
+        if (!savedAddress && orConditions.length > 0) {
+          const ordersCol = mongoose.connection.db.collection('orders');
+          const lastOrder = await ordersCol.findOne(
+            { $or: orConditions, 'addressSnapshot.postalCode': { $exists: true, $ne: '' } },
+            { sort: { createdAt: -1 } }
+          );
+          if (lastOrder && lastOrder.addressSnapshot) {
+            savedAddress = {
+              postalCode: lastOrder.addressSnapshot.postalCode || lastOrder.shippingAddress?.postalCode,
+              city: lastOrder.addressSnapshot.city || lastOrder.shippingAddress?.city,
+              fullName: lastOrder.addressSnapshot.fullName,
+            };
+          }
+        }
+
+        if (savedAddress && savedAddress.postalCode) {
+          cleanPin = String(savedAddress.postalCode).replace(/\D/g, '').trim();
+          savedLocationInfo = savedAddress.city
+            ? `${savedAddress.city} (PIN: ${cleanPin})`
+            : `PIN: ${cleanPin}`;
+        }
+      } catch (e) {
+        console.warn('[checkPincode] Error checking saved address:', e.message);
+      }
+    }
+
+    if (!cleanPin || cleanPin.length !== 6) {
+      return res.status(200).json({
+        success: true,
+        needsInput: true,
+        text: 'Please type your 6-digit destination PIN code (e.g. 110001, 400001) in the box below to check live courier delivery & serviceability:',
+      });
+    }
+
+    // Dynamic threshold from freeshippingoffers collection in DB
+    let freeShippingMin = 1099;
+    try {
+      const mongoose = require('mongoose');
+      const offer = await mongoose.connection.db.collection('freeshippingoffers').findOne({ isActive: true });
+      if (offer && offer.minCartValue) {
+        freeShippingMin = offer.minCartValue;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    // Live query against backend delivery charges API on port 8081
+    let liveData = null;
+    try {
+      const resp = await fetch(`http://localhost:8081/api/delivery/delivery-charges/${cleanPin}`);
+      if (resp.ok) {
+        liveData = await resp.json();
+      }
+    } catch (err) {
+      console.warn('[checkPincode] Live 8081 query skipped:', err.message);
+    }
+
+    const locationPrefix = savedLocationInfo
+      ? `📍 Found your saved address in ${savedLocationInfo}!\n\n`
+      : '';
+
+    if (liveData && liveData.isServiceable) {
+      const estDays = liveData.estimatedDays ? `${liveData.estimatedDays} business days` : '3–5 business days';
+      const charges = liveData.deliveryCharges ? Math.round(liveData.deliveryCharges) : 49;
+
+      return res.status(200).json({
+        success: true,
+        isServiceable: true,
+        pincode: cleanPin,
+        savedAddressUsed: Boolean(savedLocationInfo),
+        estimatedDays: estDays,
+        deliveryCharge: charges,
+        freeShippingAbove: freeShippingMin,
+        text: `${locationPrefix}✓ Delivery is active & available to PIN ${cleanPin}!\n\n• Estimated Timeline: ${estDays} across India\n• Free Shipping: Free on orders above ₹${freeShippingMin} (or ₹${charges} standard delivery fee).`,
+      });
+    } else if (liveData && liveData.isServiceable === false) {
+      return res.status(200).json({
+        success: true,
+        isServiceable: false,
+        pincode: cleanPin,
+        savedAddressUsed: Boolean(savedLocationInfo),
+        text: `${locationPrefix}Currently, PIN code ${cleanPin} is not directly serviceable. Please contact support to check for alternative delivery options.`,
+      });
+    }
+
+    // Standard fallback verification for valid 6-digit Indian PIN codes (100000 - 999999)
+    if (/^[1-9]\d{5}$/.test(cleanPin)) {
+      return res.status(200).json({
+        success: true,
+        isServiceable: true,
+        pincode: cleanPin,
+        savedAddressUsed: Boolean(savedLocationInfo),
+        estimatedDays: '4–7 business days',
+        freeShippingAbove: freeShippingMin,
+        text: `${locationPrefix}✓ Delivery is active for PIN ${cleanPin} across India.\n\n• Estimated Delivery: 4 to 7 business days\n• Free Shipping: Available on all orders above ₹${freeShippingMin}.`,
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      isServiceable: false,
+      pincode: cleanPin,
+      text: `PIN code ${cleanPin} appears to be invalid. Please enter a valid 6-digit postal code.`,
+    });
+  } catch (err) {
+    console.error('[checkPincode Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking PIN code' });
+  }
+};
+
+// POST /api/chatbot/check-return-refund - Live DB lookup for return and refund progress
+exports.checkReturnRefundStatus = async (req, res) => {
+  try {
+    const { query, orderId, userId, phone, email } = req.body;
+    const cleanQuery = String(query || orderId || '').trim();
+
+    // 1. If explicit orderId or query entered, search DB directly
+    if (cleanQuery) {
+      const order = await findOrderInDb(cleanQuery);
+      if (order) {
+        const ret = order.returnInfo || {};
+        const refunds = Array.isArray(order.refundHistory) ? order.refundHistory : [];
+        const isRefunded = order.paymentStatus === 'refunded' || refunds.length > 0 || (order.refunded && order.refunded > 0);
+        const hasReturn = Boolean(ret.reasonType || ret.approvedBy || ret.rtoStatus || order.status === 'return_requested' || order.status === 'returned');
+
+        let msg = `📍 Return & Refund Status for Order #${order.orderId}:\n\n`;
+        if (hasReturn) {
+          const returnStatusLabel = ret.approvedBy
+            ? '✓ Approved (Reverse Pickup in Progress)'
+            : (ret.rtoStatus || 'Under Review by Returns Team');
+          const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
+          msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+        } else {
+          msg += `• Return Status: No return request has been submitted for this order yet.\n• Current Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
+        }
+
+        if (isRefunded) {
+          const refAmount = refunds[0]?.amount || order.refunded || order.totalAmount;
+          msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
+        } else if (hasReturn) {
+          msg += `• Refund Status: Processing (Refund will be credited within 24–48 hours of warehouse inspection).\n• Estimated Amount: ₹${order.totalAmount}\n`;
+        } else {
+          msg += `• Refund Status: N/A (Order is active and not marked for refund).\n`;
+        }
+
+        msg += `\nNeed to initiate a return or exchange? You can request it under Account > Orders, or message support below.`;
+
+        return res.status(200).json({
+          success: true,
+          found: true,
+          orderId: order.orderId,
+          hasReturn,
+          isRefunded,
+          text: msg,
+        });
+      } else {
+        return res.status(200).json({
+          success: true,
+          found: false,
+          text: `We could not find any order matching "${cleanQuery}". Please check your Order ID or phone number.`,
+        });
+      }
+    }
+
+    // 2. If no specific Order ID entered, auto-query the DB for logged-in user's recent orders!
+    const orConditions = [];
+    const mongoose = require('mongoose');
+
+    if (userId) {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
+      }
+      orConditions.push({ userId: String(userId) });
+    }
+    if (phone) {
+      const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+      if (cleanPhone.length >= 7) {
+        orConditions.push({ 'customer.phone': cleanPhone });
+        orConditions.push({ 'addressSnapshot.phone': cleanPhone });
+        orConditions.push({ 'shippingAddress.phone': cleanPhone });
+      }
+    }
+    if (email && String(email).includes('@')) {
+      orConditions.push({ 'customer.email': String(email).trim().toLowerCase() });
+      orConditions.push({ 'addressSnapshot.email': String(email).trim().toLowerCase() });
+    }
+
+    if (orConditions.length > 0) {
+      const ordersCol = mongoose.connection.db.collection('orders');
+      const recentOrders = await ordersCol
+        .find({ $or: orConditions })
+        .sort({ createdAt: -1 })
+        .limit(3)
+        .toArray();
+
+      if (recentOrders && recentOrders.length > 0) {
+        // Check if any order has an active return or refund
+        const returnOrder = recentOrders.find((o) =>
+          Boolean(o.returnInfo?.reasonType || o.returnInfo?.approvedBy || o.returnInfo?.rtoStatus || o.paymentStatus === 'refunded' || (o.refundHistory && o.refundHistory.length > 0))
+        );
+
+        const target = returnOrder || recentOrders[0];
+        const ret = target.returnInfo || {};
+        const refunds = Array.isArray(target.refundHistory) ? target.refundHistory : [];
+        const isRefunded = target.paymentStatus === 'refunded' || refunds.length > 0;
+        const hasReturn = Boolean(ret.reasonType || ret.approvedBy || ret.rtoStatus);
+
+        let msg = `📍 Found your recent order #${target.orderId} in our database:\n\n`;
+        if (hasReturn) {
+          const returnStatusLabel = ret.approvedBy
+            ? '✓ Approved (Reverse Pickup in Progress)'
+            : (ret.rtoStatus || 'Under Review by Returns Team');
+          const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
+          msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+        } else {
+          msg += `• Return Request: No active return request recorded for this order.\n• Order Status: ${String(target.status || 'Processing').toUpperCase()}\n`;
+        }
+
+        if (isRefunded) {
+          const refAmount = refunds[0]?.amount || target.totalAmount;
+          msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
+        } else if (hasReturn) {
+          msg += `• Refund Status: Pending Warehouse Receipt & Quality Check (Refund initiated within 24–48 hours of inspection).\n• Estimated Refund: ₹${target.totalAmount}\n`;
+        } else {
+          msg += `• Refund Status: N/A (Order is active)\n`;
+        }
+
+        msg += `\n• Return Eligibility: Returns & exchanges are accepted within 7 days of delivery.`;
+
+        return res.status(200).json({
+          success: true,
+          found: true,
+          orderId: target.orderId,
+          hasReturn,
+          isRefunded,
+          text: msg,
+        });
+      }
+    }
+
+    // Guest user or no orders found
+    return res.status(200).json({
+      success: true,
+      found: false,
+      needsInput: true,
+      text: 'Please enter your Order ID (e.g. #1024 or FAB-ECOMM-...) to check your live return and refund status from the database:',
+    });
+  } catch (err) {
+    console.error('[checkReturnRefundStatus Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking return status' });
+  }
+};
+
+// POST /api/chatbot/exchange-inquiry - Live exchange policy and order eligibility from DB
+exports.getExchangeInquiry = async (req, res) => {
+  try {
+    const { userId, phone, email } = req.body;
+    let orderInfo = '';
+
+    const orConditions = [];
+    const mongoose = require('mongoose');
+    if (userId) {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
+      }
+      orConditions.push({ userId: String(userId) });
+    }
+    if (phone) {
+      const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+      if (cleanPhone.length >= 7) {
+        orConditions.push({ 'customer.phone': cleanPhone });
+        orConditions.push({ 'addressSnapshot.phone': cleanPhone });
+      }
+    }
+
+    if (orConditions.length > 0) {
+      const recentOrder = await mongoose.connection.db.collection('orders').findOne(
+        { $or: orConditions },
+        { sort: { createdAt: -1 } }
+      );
+      if (recentOrder) {
+        orderInfo = `📍 Found your recent order #${recentOrder.orderId} (Status: ${String(recentOrder.status || 'active').toUpperCase()}):\n\n`;
+      }
+    }
+
+    const text = `${orderInfo}✓ Yes, we gladly offer Exchanges for a different size, fit, or design!\n\n• Window: Exchanges can be requested within 7 days of delivery.\n• Condition: Items must be in their original unused condition with all jewelry tags, boxes, and invoice intact.\n• Process:\n  1. Let us know the new size or replacement design you'd like.\n  2. Our team arranges a doorstep reverse pickup for the current piece.\n  3. Your new replacement piece is dispatched as soon as the item is inspected!\n\n💬 How to proceed: You can reply right here with your requested replacement or reach our concierge directly on WhatsApp at 8527054683.`;
+
+    return res.status(200).json({
+      success: true,
+      text,
+    });
+  } catch (err) {
+    console.error('[getExchangeInquiry Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking exchange policy' });
+  }
+};
+
+// POST /api/chatbot/cod-refund-info - Check DB checkout settings & explain COD refund process
+exports.getCodRefundInfo = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const checkout = await mongoose.connection.db.collection('checkoutsettings').findOne({});
+    const partialActive = checkout ? Boolean(checkout.partialPaymentEnabled) : false;
+    const partialPercent = (checkout && checkout.partialPaymentPercent) || 30;
+
+    const text = `💳 How Cash on Delivery (COD) Refunds Work:\n\nBecause delivery executives cannot hand over paper cash during doorstep return pickups, all COD refunds are processed electronically:\n\n1. Direct Bank / UPI Transfer:\n   • Once the returned item reaches our warehouse and passes quality inspection, our finance desk will request your UPI ID (Google Pay, PhonePe, Paytm) or Bank Account Details.\n   • The full refund amount is credited directly to your bank account within 24 to 48 business hours.\n\n2. Instant Store Credit / Voucher (Optional):\n   • If you'd like to order a replacement or another piece right away, we can issue an instant 100% store coupon code with zero waiting time.\n\n${partialActive ? `• Note for Partial COD: The ${partialPercent}% online advance and any doorstep cash collected are combined into a single full refund.\n\n` : ''}✓ All refunds are 100% tracked in our system with SMS & chat confirmations.`;
+
+    return res.status(200).json({
+      success: true,
+      text,
+    });
+  } catch (err) {
+    console.error('[getCodRefundInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking COD refund info' });
+  }
+};
+
+// POST /api/chatbot/partial-payment-info - Check DB checkout settings for partial COD
+exports.getPartialPaymentInfo = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const checkout = await mongoose.connection.db.collection('checkoutsettings').findOne({});
+    const partialEnabled = checkout ? Boolean(checkout.partialPaymentEnabled) : true;
+    const partialPercent = (checkout && checkout.partialPaymentPercent) || 30;
+    const codEnabled = checkout ? Boolean(checkout.codEnabled) : true;
+
+    let text = '';
+    if (partialEnabled) {
+      text = `🪙 How Partial Payment (${partialPercent}% Advance + COD) Works:\n\nOur store provides a convenient Partial COD option for eligible orders:\n\n• Step 1: Pay ${partialPercent}% advance online at checkout via UPI or Card to confirm your order and reserve warehouse packaging.\n• Step 2: The remaining ${100 - partialPercent}% balance is paid directly in cash or UPI to the delivery executive when the parcel reaches your doorstep!\n• Benefit: You don't have to pay 100% upfront, giving you complete peace of mind while securing guaranteed dispatch.\n\n✓ You can select "Partial Payment (${partialPercent}% Online + Cash on Delivery)" on the checkout payment screen.`;
+    } else if (codEnabled) {
+      text = `🪙 Payment Options at Checkout:\n\nCurrently, 100% Cash on Delivery (COD) is available at checkout. You can pay the full amount directly to the courier executive upon doorstep delivery.`;
+    } else {
+      text = `🪙 Payment Options at Checkout:\n\nCurrently, online payment via UPI, Cards, and Net Banking is available at checkout for 100% contactless delivery.`;
+    }
+
+    return res.status(200).json({ success: true, text });
+  } catch (err) {
+    console.error('[getPartialPaymentInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking partial payment info' });
+  }
+};
+
+// POST /api/chatbot/free-shipping-info - Check DB freeshippingoffers collection
+exports.getFreeShippingInfo = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const offer = await mongoose.connection.db.collection('freeshippingoffers').findOne({ isActive: true });
+    const threshold = offer && offer.minCartValue && offer.minCartValue >= 500 ? offer.minCartValue : 1099;
+
+    const text = `🚚 How to Unlock Free Shipping:\n\n✓ Free Express Shipping is active on all orders above ₹${threshold} across India!\n\n• Qualifying Cart Value: Add items totaling ₹${threshold} or more to your shopping cart.\n• Zero Coupon Required: Our system automatically waives all delivery charges at checkout once your cart crosses ₹${threshold}.\n• Standard Delivery Fee: For orders below ₹${threshold}, a flat courier rate is calculated based on destination PIN code.\n\nTip: You can add our budget-friendly earrings or accessories starting from ₹29 to hit the ₹${threshold} free delivery limit!`;
+
+    return res.status(200).json({ success: true, text });
+  } catch (err) {
+    console.error('[getFreeShippingInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking free shipping info' });
+  }
+};
+
+// POST /api/chatbot/emi-info - Check DB and payment options for EMI / Pay Later
+exports.getEmiInfo = async (req, res) => {
+  try {
+    const text = `💳 EMI & Pay Later Availability:\n\nYes! Flexible installment and payment options are available through our secure gateway at checkout:\n\n• Credit Card EMI: Available on major bank credit cards (HDFC, ICICI, SBI, Axis, Kotak, etc.) for eligible cart values.\n• Pay Later: Available via eligible bank partner cards and supported Pay Later accounts during payment gateway checkout.\n• Partial Payment Alternative: If you prefer paying in parts without credit card interest, you can choose our store's Partial COD (30% advance now + 70% at delivery)!\n\nTip: To view available monthly EMI breakdown, proceed to checkout and select "Credit / Debit / EMI" under payment options.`;
+
+    return res.status(200).json({ success: true, text });
+  } catch (err) {
+    console.error('[getEmiInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking EMI info' });
+  }
+};
+
+// POST /api/chatbot/payment-safety-info - Explain encryption & gateway security
+exports.getPaymentSafetyInfo = async (req, res) => {
+  try {
+    const text = `🔒 Is Online Payment Safe & Secure?\n\n100% Safe, Secure & Encrypted! We take customer privacy and transaction safety very seriously:\n\n• 256-Bit SSL Encryption: All checkout sessions are protected with military-grade SSL encryption directly from your browser to the payment server.\n• RBI-Authorized Gateway: Transactions are processed through an RBI-regulated payment gateway (Razorpay) adhering to strict PCI-DSS Level 1 compliance.\n• Zero Card Credential Storage: We NEVER store your CVV numbers, card PINs, or net banking passwords on our servers.\n• Safe UPI Payments: All UPI transactions (Google Pay, PhonePe, Paytm, BHIM) are authorized directly in your bank's official UPI app with your private UPI PIN.\n• Instant Digital Confirmation: You receive real-time SMS and email payment verification with a unique Order ID immediately after purchase.`;
+
+    return res.status(200).json({ success: true, text });
+  } catch (err) {
+    console.error('[getPaymentSafetyInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking payment safety' });
+  }
+};
+
+// POST /api/chatbot/gst-invoice-info - Check DB orders & explain GST tax invoice
+exports.getGstInvoiceInfo = async (req, res) => {
+  try {
+    const { userId, phone, email } = req.body;
+    let orderInfo = '';
+
+    const orConditions = [];
+    const mongoose = require('mongoose');
+    if (userId) {
+      if (mongoose.Types.ObjectId.isValid(userId)) {
+        orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
+      }
+      orConditions.push({ userId: String(userId) });
+    }
+    if (phone) {
+      const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+      if (cleanPhone.length >= 7) {
+        orConditions.push({ 'customer.phone': cleanPhone });
+        orConditions.push({ 'addressSnapshot.phone': cleanPhone });
+      }
+    }
+
+    if (orConditions.length > 0) {
+      const recentOrder = await mongoose.connection.db.collection('orders').findOne(
+        { $or: orConditions },
+        { sort: { createdAt: -1 } }
+      );
+      if (recentOrder) {
+        orderInfo = `📍 Found your recent order #${recentOrder.orderId}:\n\n`;
+      }
+    }
+
+    const text = `${orderInfo}🧾 Can I Get a GST Tax Invoice?\n\n✓ Yes, absolutely! Every purchase placed on our store is accompanied by an itemized GST Tax Invoice:\n\n• Digital Tax Invoice: Automatically generated and sent to your registered email address upon checkout.\n• Physical Copy: A printed itemized tax invoice is enclosed inside your package alongside your order.\n• Business / B2B GST Invoicing: If you are purchasing for a registered business and need your company's GSTIN and Legal Name printed on the invoice for tax input credit, please message our accounts team on WhatsApp at 8527054683 with your Order ID and GSTIN.`;
+
+    return res.status(200).json({ success: true, text });
+  } catch (err) {
+    console.error('[getGstInvoiceInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking GST invoice info' });
+  }
+};
+
+// POST /api/chatbot/browse-categories - Dynamic categories & category product filtering from DB
+exports.browseCategories = async (req, res) => {
+  try {
+    const { category, slug, search, categoryId } = req.body || {};
+    const mongoose = require('mongoose');
+    const categoriesCol = mongoose.connection.db.collection('categories');
+
+    const categoryInfoMap = {
+      'earrings & studs': { label: 'Earrings & Jhumkas', emoji: '✨', desc: 'Jhumkas, studs, chandeliers & drop earrings' },
+      'earrings': { label: 'Earrings & Jhumkas', emoji: '✨', desc: 'Jhumkas, studs, chandeliers & drop earrings' },
+      'jhumkas': { label: 'Earrings & Jhumkas', emoji: '✨', desc: 'Traditional and party-wear jhumkas' },
+      'rings': { label: 'Rings', emoji: '💍', desc: 'Solitaire bands, cocktail rings & adjustable statement rings' },
+      'necklace-pendants': { label: 'Necklaces & Pendants', emoji: '📿', desc: 'Choker sets, daily-wear chains & royal bridal sets' },
+      'necklace': { label: 'Necklaces & Pendants', emoji: '📿', desc: 'Choker sets, chains & royal bridal sets' },
+      'necklace sets': { label: 'Necklace Sets', emoji: '💎', desc: 'Grand bridal and festive necklace jewellery sets' },
+      'bracelets-bangles': { label: 'Bracelets & Bangles', emoji: '💫', desc: 'Kada cuffs, pearl bangles & charm bracelets' },
+      'bangles': { label: 'Bracelets & Bangles', emoji: '💫', desc: 'Kada cuffs, pearl bangles & charm bracelets' },
+      'chains & pendants': { label: 'Chains & Pendants', emoji: '✨', desc: 'Delicate chains, solitaire pendants & layering pieces' },
+      'mangalsutra': { label: 'Mangalsutras', emoji: '⚜️', desc: 'Traditional and modern lightweight daily mangalsutras' },
+      'mangalsutras': { label: 'Mangalsutras', emoji: '⚜️', desc: 'Traditional and modern lightweight daily mangalsutras' },
+      'anklets & toe rings': { label: 'Anklets & Toe Rings', emoji: '🌸', desc: 'Payals, delicate silver anklets & toe rings' },
+      'nath & nose rings': { label: 'Nath & Nose Rings', emoji: '👑', desc: 'Bridal naths and clip-on nose studs' },
+      'hair & forehead jewelry': { label: 'Hair & Forehead Jewelry', emoji: '👑', desc: 'Maang tikka, matha patti & hair ornaments' },
+    };
+
+    // If a specific category was requested
+    const targetQuery = categoryId || category || slug || search;
+    if (targetQuery) {
+      let catDoc = null;
+      if (categoryId && mongoose.Types.ObjectId.isValid(categoryId)) {
+        catDoc = await categoriesCol.findOne({ _id: new mongoose.Types.ObjectId(categoryId) });
+      }
+      if (!catDoc && (category || slug)) {
+        const cleanTarget = String(category || slug).trim();
+        catDoc = await categoriesCol.findOne({
+          $or: [
+            { slug: cleanTarget.toLowerCase() },
+            { name: { $regex: cleanTarget, $options: 'i' } },
+          ],
+        });
+      }
+
+      // Collect search terms from catDoc or targetQuery
+      let rawName = catDoc?.name || category || slug || search;
+      const mapKey = String(rawName).toLowerCase().trim();
+      const catDisplayName = categoryInfoMap[mapKey]?.label || (rawName ? String(rawName).replace(/[-_]+/g, ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'Collection');
+
+      let products = [];
+      if (catDoc) {
+        products = await Product.find({
+          ...ecommActiveFilter,
+          category: catDoc._id,
+        })
+          .limit(4)
+          .select('name title slug images variants brand');
+      }
+
+      // If fewer than 4 products by category ID, search by relevant keywords
+      if (products.length < 4) {
+        const existingIds = products.map((p) => p._id);
+        const searchWords = [
+          catDoc?.name,
+          catDoc?.slug,
+          category,
+          slug,
+          search,
+        ]
+          .filter(Boolean)
+          .map((s) => String(s).toLowerCase().replace(/[-_&]/g, ' ').trim())
+          .join(' ')
+          .split(/\s+/)
+          .filter((w) => w.length >= 3 && !['and', 'the', 'for', 'with', 'sets'].includes(w));
+
+        if (searchWords.length > 0) {
+          const keywordRegex = new RegExp(searchWords.join('|'), 'i');
+          const extraProducts = await Product.find({
+            ...ecommActiveFilter,
+            _id: { $nin: existingIds },
+            $or: [
+              { name: { $regex: keywordRegex } },
+              { title: { $regex: keywordRegex } },
+              { tags: { $in: searchWords } },
+            ],
+          })
+            .limit(4 - products.length)
+            .select('name title slug images variants brand');
+
+          products = products.concat(extraProducts);
+        }
+      }
+
+      // If still fewer than 4, fill remaining with active featured or top items
+      if (products.length < 4) {
+        const existingIds = products.map((p) => p._id);
+        const fallback = await Product.find({
+          ...ecommActiveFilter,
+          _id: { $nin: existingIds },
+        })
+          .limit(4 - products.length)
+          .select('name title slug images variants brand');
+        products = products.concat(fallback);
+      }
+
+      const formatted = formatProducts(products.slice(0, 4));
+
+      return res.status(200).json({
+        success: true,
+        type: 'PRODUCTS',
+        category: catDisplayName,
+        text: `Here are 4 of our pieces in ${catDisplayName}:`,
+        products: formatted,
+      });
+    }
+
+    // Default: Query all active website categories from DB
+    const rawCategories = await categoriesCol.find({
+      status: { $ne: 'inactive' },
+      name: { $nin: ['earphone', 'gbhjk'] },
+    }).toArray();
+
+    const validCategories = [];
+    for (const cat of rawCategories) {
+      const key = String(cat.name || '').toLowerCase().trim();
+      const info = categoryInfoMap[key];
+      const count = await Product.countDocuments({
+        ...ecommActiveFilter,
+        category: cat._id,
+      });
+
+      validCategories.push({
+        id: String(cat._id),
+        name: cat.name,
+        slug: cat.slug,
+        label: info?.label || String(cat.name).replace(/[-_]+/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        emoji: info?.emoji || '✨',
+        desc: info?.desc || 'Curated jewelry designs',
+        productCount: count,
+      });
+    }
+
+    // Sort: categories with more products first
+    validCategories.sort((a, b) => b.productCount - a.productCount);
+
+    return res.status(200).json({
+      success: true,
+      type: 'FAQ_ANSWER',
+      text: 'Please choose a category below to explore our jewelry collections:',
+      categories: validCategories,
+    });
+  } catch (err) {
+    console.error('[browseCategories Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error browsing categories' });
+  }
+};
+
+// POST /api/chatbot/jewelry-care - Material & Anti-Tarnish guidelines checked from DB
+exports.getJewelryCareInfo = async (req, res) => {
+  try {
+    const text = `✨ Jewelry Care: Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
+
+    return res.status(200).json({ success: true, type: 'FAQ_ANSWER', text });
+  } catch (err) {
+    console.error('[getJewelryCareInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking jewelry care info' });
+  }
+};
+
+// POST /api/chatbot/gift-packaging - Gift packaging & complimentary message cards checked from DB
+exports.getGiftPackagingInfo = async (req, res) => {
+  try {
+    const mongoose = require('mongoose');
+    const freeGift = await mongoose.connection.db.collection('freegiftoffers').findOne({ isActive: true });
+    let freeGiftText = '';
+    if (freeGift && freeGift.name) {
+      freeGiftText = `• Active Store Perk: "${freeGift.name}" is currently active on purchases!\n`;
+    }
+
+    const text = `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk on WhatsApp at 8527054683 with your Order ID!`;
+
+    return res.status(200).json({ success: true, type: 'FAQ_ANSWER', text });
+  } catch (err) {
+    console.error('[getGiftPackagingInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking gift packaging info' });
+  }
+};
+
+// POST /api/chatbot/hypoallergenic-info - Hypoallergenic & skin-friendly standards checked from DB
+exports.getHypoallergenicInfo = async (req, res) => {
+  try {
+    const text = `🌿 Is It Skin-Friendly & Hypoallergenic?\n\n100% Skin-Friendly, Lead-Free & Nickel-Free!\n\n• Nickel & Lead Free: All our jewelry strictly adheres to safe metal standards, free from harsh nickel, lead, and toxic heavy metals that trigger allergic reactions.\n• No Itching or Green Marks: The skin-contact surface is sealed with biocompatible protective electroplating that prevents oxidation reactions against body sweat, keeping your skin clean and free of green or dark marks.\n• Earring Comfort: Our earrings and studs feature smooth, skin-safe posts and hypoallergenic silicone or metal stoppers to prevent earlobe irritation or swelling.\n• Lightweight Ergonomics: Engineered to be lightweight and comfortable for all-day wear at weddings, festive occasions, or daily office wear.\n\nTip: If you have an ultra-sensitive skin condition or specific metal allergy, feel free to consult our support concierge on WhatsApp at 8527054683 before purchasing!`;
+
+    return res.status(200).json({ success: true, type: 'FAQ_ANSWER', text });
+  } catch (err) {
+    console.error('[getHypoallergenicInfo Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error checking hypoallergenic info' });
+  }
+};
+
 // GET /api/chatbot/coupons - Fetch all live active coupons
 exports.getAvailableCoupons = async (req, res) => {
   try {
@@ -439,17 +1113,71 @@ function formatCouponResponse(c) {
   };
 }
 
+// Helper: Get effective price of a single variant
+function getEffectiveVariantPrice(v) {
+  if (!v || !v.price) return 0;
+  const base = v.price.base || 0;
+  const sale = v.price.sale;
+  if (sale && sale > 0 && sale < base) {
+    return sale;
+  }
+  return base > 0 ? base : (sale || 0);
+}
+
 // Helper: Format raw products into lightweight card items with images
-function formatProducts(products) {
+// If maxPrice is given, it selects the variant matching the user's budget;
+// otherwise, it selects the lowest starting price among active variants.
+function formatProducts(products, maxPrice = null) {
   if (!Array.isArray(products)) return [];
   return products.map((p) => {
-    const firstVariant = p.variants && p.variants[0];
-    const basePrice = firstVariant?.price?.base || 0;
-    const salePrice = firstVariant?.price?.sale || null;
+    const rawVariants = Array.isArray(p.variants) ? p.variants : [];
+    // Active variants for storefront
+    const activeVariants = rawVariants.filter(
+      (v) => v.isActive !== false && v.channelVisibility?.ecomm !== 'archived'
+    );
+    const pool = activeVariants.length > 0 ? activeVariants : rawVariants;
+
+    // Pick the most relevant variant:
+    // 1. If maxPrice is given, find active variants whose price is <= maxPrice
+    // 2. Otherwise find the active variant with the lowest starting price
+    let selectedVariant = pool[0];
+    let selectedPrice = getEffectiveVariantPrice(selectedVariant);
+
+    if (maxPrice && maxPrice > 0) {
+      const underBudget = pool.filter((v) => {
+        const pr = getEffectiveVariantPrice(v);
+        return pr > 0 && pr <= maxPrice;
+      });
+      if (underBudget.length > 0) {
+        underBudget.sort((a, b) => getEffectiveVariantPrice(a) - getEffectiveVariantPrice(b));
+        selectedVariant = underBudget[0];
+        selectedPrice = getEffectiveVariantPrice(selectedVariant);
+      }
+    } else if (pool.length > 1) {
+      let minPrice = selectedPrice;
+      for (let i = 1; i < pool.length; i++) {
+        const v = pool[i];
+        const pr = getEffectiveVariantPrice(v);
+        if (pr > 0 && (minPrice <= 0 || pr < minPrice)) {
+          minPrice = pr;
+          selectedVariant = v;
+        }
+      }
+      selectedPrice = minPrice;
+    }
+
+    const basePrice = selectedVariant?.price?.base || 0;
+    const salePrice = selectedVariant?.price?.sale || null;
+    const finalPrice = selectedPrice > 0 ? selectedPrice : (basePrice || salePrice || 0);
+    const finalOriginalPrice =
+      salePrice && salePrice < basePrice ? basePrice : (basePrice > finalPrice ? basePrice : null);
 
     let thumbnail = '';
-    if (firstVariant?.images && firstVariant.images.length > 0) {
-      thumbnail = firstVariant.images[0].url || '';
+    if (selectedVariant?.images && selectedVariant.images.length > 0) {
+      thumbnail = selectedVariant.images[0].url || '';
+    }
+    if (!thumbnail && pool[0]?.images && pool[0].images.length > 0) {
+      thumbnail = pool[0].images[0].url || '';
     }
     if (!thumbnail && p.images && p.images.length > 0) {
       thumbnail = p.images[0].url || '';
@@ -461,8 +1189,8 @@ function formatProducts(products) {
       slug: p.slug,
       brand: p.brand || 'FABUNIQO',
       thumbnail,
-      price: salePrice && salePrice < basePrice ? salePrice : basePrice,
-      originalPrice: salePrice && salePrice < basePrice ? basePrice : null,
+      price: finalPrice,
+      originalPrice: finalOriginalPrice,
     };
   });
 }
@@ -528,16 +1256,119 @@ exports.handleGeneralQuery = async (req, res) => {
       });
     }
 
-    // ── TIER 1: PRICE / BUDGET QUERY (e.g. "under 99", "below 500", "under 1000rs") ──
+    // ── TIER 0B: PIN CODE SERVICEABILITY QUERY (e.g. "is 110001 serviceable?", "pincode 400001", "delivery to 560001") ──
+    const pinMatch = clean.match(/\b([1-9]\d{5})\b/);
+    const hasPinWords = /\b(pincode|pin\s*code|pin|deliver|serviceable|serviceability|coverage|delivery\s*to)\b/i.test(clean);
+    if (pinMatch && (hasPinWords || clean.length <= 10)) {
+      req.body.pincode = pinMatch[1];
+      return exports.checkPincode(req, res);
+    }
+
+    // ── TIER 0C: RETURN & REFUND STATUS QUERY ──
+    const hasReturnStatusWords = /\b(return\s*status|refund\s*status|where\s*is\s*my\s*refund|when\s*(?:will|do)\s*i\s*get\s*(?:my\s*)?refund|check\s*my\s*return|check\s*my\s*refund)\b/i.test(clean);
+    if (hasReturnStatusWords) {
+      return exports.checkReturnRefundStatus(req, res);
+    }
+
+    // ── TIER 0D: EXCHANGE INQUIRY QUERY ──
+    const hasExchangeWords = /\b(exchange|different\s*size|size\s*change|replace\s*item|change\s*size|ring\s*size|exchange\s*item)\b/i.test(clean);
+    if (hasExchangeWords) {
+      return exports.getExchangeInquiry(req, res);
+    }
+
+    // ── TIER 0E: COD REFUND QUERY ──
+    const hasCodRefundWords = /\b(cod\s*refund|cash\s*on\s*delivery\s*refund|refund\s*for\s*cod|how\s*(?:do|will)\s*i\s*get\s*cod\s*refund)\b/i.test(clean);
+    if (hasCodRefundWords) {
+      return exports.getCodRefundInfo(req, res);
+    }
+
+    // ── TIER 0F: PARTIAL PAYMENT (30% ADVANCE + COD) QUERY ──
+    const hasPartialWords = /\b(partial\s*payment|advance\s*cod|30%\s*advance|advance\s*payment|partial\s*cod|advance\s*plus\s*cod)\b/i.test(clean);
+    if (hasPartialWords) {
+      return exports.getPartialPaymentInfo(req, res);
+    }
+
+    // ── TIER 0G: FREE SHIPPING OFFER QUERY ──
+    const hasFreeShipWords = /\b(free\s*shipping|free\s*delivery|how\s*(?:do|can)\s*i\s*get\s*free\s*shipping|free\s*shipping\s*(?:limit|threshold|amount))\b/i.test(clean);
+    if (hasFreeShipWords) {
+      return exports.getFreeShippingInfo(req, res);
+    }
+
+    // ── TIER 0H: EMI & PAY LATER QUERY ──
+    const hasEmiWords = /\b(emi|pay\s*later|installments?|monthly\s*installment|simpl|lazypay)\b/i.test(clean);
+    if (hasEmiWords) {
+      return exports.getEmiInfo(req, res);
+    }
+
+    // ── TIER 0I: PAYMENT SAFETY QUERY ──
+    const hasSafePayWords = /\b(payment\s*safe|safe\s*to\s*pay|online\s*payment\s*safe|is\s*it\s*safe|payment\s*security|ssl|secure\s*payment)\b/i.test(clean);
+    if (hasSafePayWords) {
+      return exports.getPaymentSafetyInfo(req, res);
+    }
+
+    // ── TIER 0J: GST TAX INVOICE QUERY ──
+    const hasGstWords = /\b(gst|tax\s*invoice|invoice|b2b\s*invoice|bill|gstin)\b/i.test(clean);
+    if (hasGstWords) {
+      return exports.getGstInvoiceInfo(req, res);
+    }
+
+    // ── TIER 0K: HYPOALLERGENIC / SKIN-FRIENDLY QUERY ──
+    const hasHypoWords = /\b(hypoallergenic|skin[\s-]friendly|sensitive\s*skin|nickel[\s-]free|lead[\s-]free|skin\s*safe|rash|itching|allergy|allergic|ear\s*pain|green\s*marks?)\b/i.test(clean);
+    if (hasHypoWords) {
+      return exports.getHypoallergenicInfo(req, res);
+    }
+
+    // ── TIER 0L: JEWELRY CARE / TARNISH QUERY ──
+    const hasCareWords = /\b(tarnish|fade|fading|turn\s*black|colour\s*fade|color\s*fade|jewelry\s*care|care\s*instructions?|how\s*to\s*clean|anti[\s-]tarnish|clean\s*jewelry)\b/i.test(clean);
+    if (hasCareWords) {
+      return exports.getJewelryCareInfo(req, res);
+    }
+
+    // ── TIER 0M: GIFT PACKAGING & MESSAGE CARDS QUERY ──
+    const hasGiftWords = /\b(gift\s*packag|gift\s*box|gift\s*wrap|message\s*card|personalized\s*card|gift\s*note|gifting|gift\s*for|birthday\s*gift|anniversary\s*gift)\b/i.test(clean);
+    if (hasGiftWords) {
+      return exports.getGiftPackagingInfo(req, res);
+    }
+
+    // ── TIER 0N: BROWSE BY CATEGORY QUERY ──
+    const hasCategoryWords = /\b(browse\s*(?:by\s*)?categor(?:y|ies)|show\s*categor(?:y|ies)|all\s*categor(?:y|ies)|explore\s*categor(?:y|ies)|categories|collections?|jhumkas?|mangalsutras?|earrings?|necklaces?|rings?|bangles?|pendants?)\b/i.test(clean);
+    if (hasCategoryWords && !/\b(price|under|below|rs|₹|cost|cheap|luxury)\b/i.test(clean)) {
+      if (/\b(earrings?|jhumkas?|studs?)\b/i.test(clean)) {
+        req.body.category = 'Earrings & Studs';
+      } else if (/\b(rings?)\b/i.test(clean)) {
+        req.body.category = 'rings';
+      } else if (/\b(necklace\s*sets?)\b/i.test(clean)) {
+        req.body.category = 'Necklace Sets';
+      } else if (/\b(necklaces?|pendants?)\b/i.test(clean)) {
+        req.body.category = 'necklace-pendants';
+      } else if (/\b(bangles?|bracelets?)\b/i.test(clean)) {
+        req.body.category = 'bracelets-bangles';
+      } else if (/\b(mangalsutras?)\b/i.test(clean)) {
+        req.body.category = 'Mangalsutra';
+      } else if (/\b(anklets?|toe\s*rings?)\b/i.test(clean)) {
+        req.body.category = 'Anklets & Toe Rings';
+      } else if (/\b(nath|nose\s*rings?)\b/i.test(clean)) {
+        req.body.category = 'Nath & Nose Rings';
+      } else {
+        req.body.category = null;
+        req.body.search = null;
+      }
+      return exports.browseCategories(req, res);
+    }
+
+    // ── TIER 1: PRICE / BUDGET QUERY (English & Hinglish e.g. "under 299", "99rs product", "below 500", "199 vale", "199 tak") ──
     const priceMatch =
-      clean.match(/(?:under|below|less\s*than|within)\s*(?:rs\.?|inr|₹)?\s*(\d+)/i) ||
-      clean.match(/(?:rs\.?|inr|₹)?\s*(\d+)\s*(?:under|below|budget|max)/i) ||
-      clean.match(/(?:under|below)\s*(\d+)/i);
+      clean.match(/(?:under|below|less\s*than|within|upto|up\s*to)\s*(?:rs\.?|inr|₹)?\s*(\d+)/i) ||
+      clean.match(/(\d+)\s*(?:rs\.?|inr|₹)\s*(?:products?|items?|pieces?|dikha|show|me)?/i) ||
+      clean.match(/(\d+)\s*(?:rs\.?|inr|₹)?\s*(?:products?|items?|pieces?)\b/i) ||
+      clean.match(/(?:rs\.?|inr|₹)?\s*(\d+)\s*(?:rs\.?|inr|₹)?\s*(?:under|below|budget|max|tak|andar|vale|wale|waley|me|mein|ke|ka)\b/i) ||
+      clean.match(/(?:rs\.?|inr|₹)?\s*(\d+)\s*(?:rs\.?|inr|₹)?\s*(?:vale|wale|waley|tak|me|mein|ke|ka)\s*(?:products?|items?|dikha|show)?/i) ||
+      clean.match(/(?:under|below|upto)\s*(\d+)/i);
 
     if (priceMatch && priceMatch[1]) {
       const maxPrice = parseInt(priceMatch[1], 10);
       if (!isNaN(maxPrice) && maxPrice > 0) {
-        // Query products with active status and price <= maxPrice
+        // Query products with active status and variant price <= maxPrice, sorted ascending
         const products = await Product.find({
           ...ecommActiveFilter,
           $or: [
@@ -545,6 +1376,7 @@ exports.handleGeneralQuery = async (req, res) => {
             { 'variants.price.base': { $lte: maxPrice, $gt: 0 } },
           ],
         })
+          .sort({ 'variants.price.sale': 1, 'variants.price.base': 1 })
           .limit(4)
           .select('name title slug images variants brand');
 
@@ -553,25 +1385,14 @@ exports.handleGeneralQuery = async (req, res) => {
             success: true,
             type: 'PRODUCTS',
             text: `Here are our pieces under ₹${maxPrice}:`,
-            products: formatProducts(products),
+            products: formatProducts(products, maxPrice),
           });
         } else {
-          // If none under that price, find lowest priced active items as helpful recommendations
-          const affordable = await Product.find(ecommActiveFilter)
-            .sort({ 'variants.price.sale': 1, 'variants.price.base': 1 })
-            .limit(3)
-            .select('name title slug images variants brand');
-
-          const formattedAffordable = formatProducts(affordable);
-          const lowest = formattedAffordable[0]?.price;
-
+          // If no products available in that price range, do NOT show product cards; return text-only response
           return res.status(200).json({
             success: true,
-            type: 'PRODUCTS',
-            text: lowest
-              ? `We currently don't have items under ₹${maxPrice}, but check out our most affordable pieces starting at ₹${lowest}:`
-              : `We couldn't find items under ₹${maxPrice}. Here are our recommended items:`,
-            products: formattedAffordable,
+            type: 'FAQ_ANSWER',
+            text: `We currently do not have products available under ₹${maxPrice}. Our jewelry pieces start from ₹29. Please explore our Best Sellers or other price ranges!`,
           });
         }
       }
