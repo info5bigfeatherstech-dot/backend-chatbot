@@ -1,6 +1,6 @@
 const mongoose = require('mongoose');
 
-// Read-only schema matching existing orders collection
+// Read-only schema matching existing orders collection in MongoDB Atlas
 const orderSchema = new mongoose.Schema(
   {
     orderId: { type: String, required: true },
@@ -8,12 +8,28 @@ const orderSchema = new mongoose.Schema(
     paymentStatus: { type: String, default: 'pending' },
     deliveryCharges: { type: Number, default: 0 },
     subtotal: { type: Number, default: 0 },
+    addressSnapshot: {
+      fullName: String,
+      phone: String,
+      city: String,
+      state: String,
+      postalCode: String,
+    },
     shippingAddress: {
       fullName: String,
       phone: String,
       city: String,
       state: String,
       pincode: String,
+    },
+    shippingSnapshot: {
+      courierName: String,
+      estimatedDays: String,
+    },
+    shipmentInfo: {
+      fulfillmentArtifactAwb: String,
+      assignedCourierId: String,
+      pickupDate: Date,
     },
     shipmentTracking: {
       courierName: String,
@@ -29,7 +45,8 @@ const orderSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true, strict: false }
 );
 
 module.exports = mongoose.model('Order', orderSchema, 'orders');
+

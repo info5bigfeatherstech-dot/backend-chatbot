@@ -10,6 +10,10 @@ const productSchema = new mongoose.Schema(
     brand: { type: String, default: 'Generic' },
     isFeatured: { type: Boolean, default: false },
     status: { type: String, default: 'active' },
+    channelStatus: {
+      ecomm: { type: String, default: 'active' },
+      wholesale: { type: String, default: 'draft' },
+    },
     images: [
       {
         url: String,
@@ -34,7 +38,7 @@ const productSchema = new mongoose.Schema(
       },
     ],
   },
-  { timestamps: true }
+  { timestamps: true, strict: false }
 );
 
 module.exports = mongoose.model('Product', productSchema, 'products');

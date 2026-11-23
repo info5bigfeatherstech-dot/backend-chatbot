@@ -21,7 +21,7 @@ const initialFaqs = [
     questionId: 'delivery_charges_timeline',
     question: '🚚 Delivery charges & delivery timeline',
     actionType: 'STATIC_TEXT',
-    answerText: 'Standard delivery takes 3 to 5 business days across India. Free shipping is available on orders above ₹499. For orders below ₹499, a nominal delivery fee of ₹49 applies.',
+    answerText: '• Free Shipping: Free delivery is available on all orders above ₹1099 across India (as featured on our storefront banner).\n• Delivery Charges: For orders below ₹1099, delivery charges are calculated live at checkout based on package weight, delivery destination PIN code, and active courier rates.\n• Delivery Timeline: Orders are processed within 24–48 hours and typically delivered within 3 to 7 business days across India.\n• Live Tracking: Once shipped, real-time courier tracking is accessible directly here in chat or under your Account > Orders.',
     sortOrder: 2,
   },
   {
@@ -31,7 +31,7 @@ const initialFaqs = [
     questionId: 'cancel_order',
     question: '❌ How to cancel or change my order',
     actionType: 'STATIC_TEXT',
-    answerText: 'You can cancel an order before it has been dispatched from your Account > Orders section. If the package is already shipped, you can refuse delivery at your doorstep or initiate a return upon arrival.',
+    answerText: 'You can cancel an order before it has been dispatched from your Account > Orders section. Once the order has been dispatched from our warehouse, it cannot be cancelled in-transit; you may refuse delivery at your doorstep as per our Order Cancellation Policy.',
     sortOrder: 3,
   },
   {
@@ -41,7 +41,7 @@ const initialFaqs = [
     questionId: 'delivered_not_received',
     question: '⚠️ Order marked delivered but not received',
     actionType: 'STATIC_TEXT',
-    answerText: 'Sometimes couriers mark packages delivered slightly before handing them over, or a family member/security desk received it. If you still cannot locate it within 4 hours, please contact our support team immediately.',
+    answerText: 'Sometimes couriers mark packages delivered slightly before doorstep handover, or a family member/building security received it. If you cannot locate it within 4 hours, please contact our support team at support.fabuniqo@gmail.com with your Order ID for prompt courier escalation.',
     sortOrder: 4,
   },
 
@@ -60,11 +60,31 @@ const initialFaqs = [
     categoryKey: 'products',
     categoryTitle: 'Products & Catalog',
     categoryIcon: '🛍️',
+    questionId: 'cheaper_products',
+    question: '🪙 Cheaper / Budget-Friendly Products',
+    actionType: 'CHEAP_PRODUCTS',
+    answerText: 'Here are our most affordable budget-friendly pieces starting at great prices:',
+    sortOrder: 2,
+  },
+  {
+    categoryKey: 'products',
+    categoryTitle: 'Products & Catalog',
+    categoryIcon: '🛍️',
+    questionId: 'expensive_products',
+    question: '💎 Expensive / Luxury Products',
+    actionType: 'EXPENSIVE_PRODUCTS',
+    answerText: 'Here are our most exclusive, high-end luxury pieces:',
+    sortOrder: 3,
+  },
+  {
+    categoryKey: 'products',
+    categoryTitle: 'Products & Catalog',
+    categoryIcon: '🛍️',
     questionId: 'product_authenticity',
     question: '✨ Product quality & authenticity',
     actionType: 'STATIC_TEXT',
     answerText: 'Every piece at FABUNIQO is crafted with premium quality standards, rigorous quality inspection, and authentic materials before shipment.',
-    sortOrder: 2,
+    sortOrder: 4,
   },
   {
     categoryKey: 'products',
@@ -74,7 +94,7 @@ const initialFaqs = [
     question: '⏳ When will out-of-stock items be back?',
     actionType: 'STATIC_TEXT',
     answerText: 'Popular items are usually restocked within 7–10 days. You can leave your contact info with us or check back next week!',
-    sortOrder: 3,
+    sortOrder: 5,
   },
   {
     categoryKey: 'products',
@@ -84,7 +104,7 @@ const initialFaqs = [
     question: '📏 Sizing and measurement guide',
     actionType: 'STATIC_TEXT',
     answerText: 'Detailed measurements and sizing charts are available directly on each product page just below the price and variant selection.',
-    sortOrder: 4,
+    sortOrder: 6,
   },
 
   // 3. RETURNS & REFUNDS
@@ -95,7 +115,7 @@ const initialFaqs = [
     questionId: 'return_policy',
     question: '📋 What is your return policy?',
     actionType: 'STATIC_TEXT',
-    answerText: 'We offer a hassle-free 7-day return and exchange window from the date of delivery for unworn items with tags and original packaging intact.',
+    answerText: 'As per our official Return & Refund Policy (/policies/return-refund):\n• Eligible Reasons: Returns are accepted only for Damaged items received or Wrong items delivered (change of mind is not eligible).\n• Reporting Window: Return requests must be raised within 24 hours of delivery.\n• Mandatory Proof: A continuous, uncut unboxing video showing the sealed parcel from start to finish, along with 1 to 3 clear photos of the issue.\n• Refunds: Processed to your original payment method (or bank transfer for COD) once the item is received and verified at our warehouse.',
     sortOrder: 1,
   },
   {
@@ -105,7 +125,7 @@ const initialFaqs = [
     questionId: 'request_return',
     question: '🔄 How do I initiate a return?',
     actionType: 'STATIC_TEXT',
-    answerText: 'Go to your Account > Orders page, select the order you wish to return, click "Request Return", and choose your reason. Our courier partner will schedule a doorstep pickup.',
+    answerText: 'Go to your Account > Orders page, select the order you wish to return, click "Request Return", and choose your reason (damaged or wrong item). Upload your unboxing video and photo proofs. Our team will review and schedule a reverse pickup upon approval.',
     sortOrder: 2,
   },
   {
@@ -115,7 +135,7 @@ const initialFaqs = [
     questionId: 'refund_timeline',
     question: '💰 Refund timeline & process',
     actionType: 'STATIC_TEXT',
-    answerText: 'Once the returned item reaches our fulfillment warehouse and passes quality inspection, refunds are processed within 24–48 hours to your original payment method (or bank account for COD orders).',
+    answerText: 'Once the returned package reaches our warehouse and passes verification:\n• Online Payments: Refund is processed via original payment gateway (credited to your bank/card within 5 to 10 business days).\n• Cash on Delivery (COD): Refund is transferred via support-assisted UPI/Bank Transfer after verification.',
     sortOrder: 3,
   },
   {
@@ -125,7 +145,7 @@ const initialFaqs = [
     questionId: 'damaged_product',
     question: '💔 Received damaged or defective item',
     actionType: 'STATIC_TEXT',
-    answerText: 'We apologize! Please take a quick photo of the defective item and share it with us via WhatsApp or support ticket within 48 hours of delivery for a free instant replacement.',
+    answerText: 'We apologize! Please take a quick photo of the defective item along with your continuous unboxing video, and raise a return under Account > Orders or contact support within 24 hours of delivery for a free instant resolution.',
     sortOrder: 4,
   },
 
@@ -137,7 +157,7 @@ const initialFaqs = [
     questionId: 'payment_methods',
     question: '💳 Accepted payment methods',
     actionType: 'STATIC_TEXT',
-    answerText: 'We accept all major UPI apps (Google Pay, PhonePe, Paytm), Credit & Debit Cards (Visa, Mastercard, RuPay), Net Banking, and Cash on Delivery (COD).',
+    answerText: 'We accept:\n• Online Payment: UPI (Google Pay, PhonePe, Paytm), Credit & Debit Cards (Visa, Mastercard, RuPay), and Net Banking via secure Razorpay checkout.\n• Cash on Delivery (COD): Available across serviceable PIN codes.\n• Partial Advance + COD: Select orders support paying a partial online advance with the remaining balance due on delivery.',
     sortOrder: 1,
   },
   {
@@ -165,9 +185,9 @@ const initialFaqs = [
     categoryTitle: 'Payments & Offers',
     categoryIcon: '💳',
     questionId: 'apply_coupons',
-    question: '🏷️ How to apply discount coupons',
-    actionType: 'STATIC_TEXT',
-    answerText: 'On the Checkout page, look for the "Apply Coupon" field on the right side of the screen. Enter your promo code and click "Apply" to enjoy instant savings.',
+    question: '🏷️ Available Coupons to Apply',
+    actionType: 'VIEW_COUPONS',
+    answerText: 'Here are the active discount coupons available for your order:',
     sortOrder: 4,
   },
 
