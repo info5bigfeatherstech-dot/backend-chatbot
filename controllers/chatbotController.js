@@ -3,11 +3,19 @@ const Order = require('../models/Order');
 const Product = require('../models/Product');
 const Coupon = require('../models/Coupon');
 const ChatTicket = require('../models/ChatTicket');
+const {
+  HINGLISH_CATEGORIES,
+  HINGLISH_QUESTIONS,
+  HINGLISH_ANSWERS,
+} = require('../constants/hinglishFaqs');
 
 // GET /api/chatbot/welcome
 exports.getWelcome = async (req, res) => {
   try {
-    const categories = [
+    const lang = req.query.lang || req.body?.lang || req.headers['x-chat-lang'] || 'en';
+    const isHi = String(lang).toLowerCase() === 'hi';
+
+    const categoriesEn = [
       { key: 'orders', title: 'Orders & Delivery', icon: '📦' },
       { key: 'products', title: 'Products & Catalog', icon: '🛍️' },
       { key: 'returns', title: 'Returns & Refunds', icon: '🔄' },
@@ -15,9 +23,14 @@ exports.getWelcome = async (req, res) => {
       { key: 'support', title: 'Contact Support', icon: '📞' },
     ];
 
+    const categories = isHi ? HINGLISH_CATEGORIES : categoriesEn;
+    const greeting = isHi
+      ? 'FABUNIQO me aapka swagat hai! 👋 Aaj hum aapki kya sahayata kar sakte hain?'
+      : 'Hi there! 👋 Welcome to FABUNIQO. How can we help you today?';
+
     return res.status(200).json({
       success: true,
-      greeting: 'Hi there! 👋 Welcome to FABUNIQO. How can we help you today?',
+      greeting,
       storeName: process.env.STORE_NAME || 'FABUNIQO',
       supportHours: process.env.SUPPORT_HOURS || '10:00 AM - 7:00 PM IST',
       categories,
@@ -32,9 +45,18 @@ exports.getWelcome = async (req, res) => {
 exports.getCategoryQuestions = async (req, res) => {
   try {
     const { categoryKey } = req.params;
-    const questions = await ChatFaq.find({ categoryKey, isActive: true })
+    const lang = req.query.lang || req.headers['x-chat-lang'] || 'en';
+    const isHi = String(lang).toLowerCase() === 'hi';
+
+    const questionsDoc = await ChatFaq.find({ categoryKey, isActive: true })
       .sort({ sortOrder: 1 })
-      .select('questionId question actionType sortOrder');
+      .select('questionId question actionType sortOrder')
+      .lean();
+
+    const questions = questionsDoc.map((q) => ({
+      ...q,
+      question: (isHi && HINGLISH_QUESTIONS[q.questionId]) ? HINGLISH_QUESTIONS[q.questionId] : q.question,
+    }));
 
     return res.status(200).json({
       success: true,
@@ -50,10 +72,12 @@ exports.getCategoryQuestions = async (req, res) => {
 // POST /api/chatbot/answer
 exports.getAnswer = async (req, res) => {
   try {
-    const { questionId } = req.body;
+    const { questionId, lang } = req.body;
     if (!questionId) {
       return res.status(400).json({ success: false, message: 'questionId is required' });
     }
+
+    const isHi = String(lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
 
     const faq = await ChatFaq.findOne({ questionId, isActive: true });
     if (!faq) {
@@ -66,7 +90,11 @@ exports.getAnswer = async (req, res) => {
         const mongoose = require('mongoose');
         const offer = await mongoose.connection.db.collection('freeshippingoffers').findOne({ isActive: true });
         const threshold = offer && offer.minCartValue && offer.minCartValue >= 500 ? offer.minCartValue : 1099;
-        answerText = `1. Free Shipping: Free delivery is available on all orders above ₹${threshold} across India (as featured on our storefront banner).\n\n2. Delivery Charges: For orders below ₹${threshold}, delivery charges are calculated live at checkout based on package weight, destination PIN code, and active courier rates.\n\n3. Delivery Timeline: Orders are processed within 24–48 hours and typically delivered within 3 to 7 business days across India.\n\n4. Live Tracking: Once shipped, real-time courier tracking is accessible directly in chat or under your Account > Orders.`;
+        if (isHi) {
+          answerText = `1. Free Shipping: ₹${threshold} se upar ke sabhi orders par poore Bharat mein free delivery uplabdh hai.\n\n2. Delivery Charges: ₹${threshold} se kam ke orders par standard delivery charge lagta hai jo checkout ke time live calculate hota hai.\n\n3. Delivery Timeline: Orders 24–48 ghante mein dispatch ho jate hain aur aamtaur par 3 se 7 business days mein deliver ho jate hain.\n\n4. Live Tracking: Dispatch hote hi aap chat mein ya Account > Orders me live tracking check kar sakte hain.`;
+        } else {
+          answerText = `1. Free Shipping: Free delivery is available on all orders above ₹${threshold} across India (as featured on our storefront banner).\n\n2. Delivery Charges: For orders below ₹${threshold}, delivery charges are calculated live at checkout based on package weight, destination PIN code, and active courier rates.\n\n3. Delivery Timeline: Orders are processed within 24–48 hours and typically delivered within 3 to 7 business days across India.\n\n4. Live Tracking: Once shipped, real-time courier tracking is accessible directly in chat or under your Account > Orders.`;
+        }
       } catch (e) {
         console.error('[Dynamic Delivery Answer Error]:', e);
       }
@@ -78,41 +106,54 @@ exports.getAnswer = async (req, res) => {
         const partialEnabled = checkout ? Boolean(checkout.partialPaymentEnabled) : false;
         const partialPercent = (checkout && checkout.partialPaymentPercent) || 30;
 
-        if (codEnabled) {
-          answerText = `Yes! Cash on Delivery (COD) is currently active and available across most serviceable PIN codes throughout India.\n\n${partialEnabled ? `• Note: Select orders support Partial Payment (${partialPercent}% online advance + remaining balance at delivery).\n\n` : ''}You can select Cash on Delivery during the checkout payment step.`;
+        if (isHi) {
+          if (codEnabled) {
+            answerText = `Haan! Cash on Delivery (COD) poore Bharat ke lagbhag sabhi serviceable PIN codes par uplabdh hai.\n\n${partialEnabled ? `• Note: Select orders par Partial Payment (${partialPercent}% online advance + baki delivery par) uplabdh hai.\n\n` : ''}Aap checkout ke time Payment step par 'Cash on Delivery' option select kar sakte hain.`;
+          } else {
+            answerText = `Filhal humare store par Cash on Delivery (COD) band hai. Hum UPI (Google Pay, PhonePe, Paytm), Cards aur Net Banking se 100% secure online payment accept karte hain.`;
+          }
         } else {
-          answerText = `Currently, Cash on Delivery (COD) is disabled in our store. We accept 100% secure online payments via UPI (Google Pay, PhonePe, Paytm), Credit & Debit Cards, and Net Banking at checkout.`;
+          if (codEnabled) {
+            answerText = `Yes! Cash on Delivery (COD) is currently active and available across most serviceable PIN codes throughout India.\n\n${partialEnabled ? `• Note: Select orders support Partial Payment (${partialPercent}% online advance + remaining balance at delivery).\n\n` : ''}You can select Cash on Delivery during the checkout payment step.`;
+          } else {
+            answerText = `Currently, Cash on Delivery (COD) is disabled in our store. We accept 100% secure online payments via UPI (Google Pay, PhonePe, Paytm), Credit & Debit Cards, and Net Banking at checkout.`;
+          }
         }
       } catch (e) {
         console.error('[Dynamic COD Answer Error]:', e);
       }
     } else if (questionId === 'jewelry_care') {
-      answerText = `Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
+      answerText = isHi
+        ? HINGLISH_ANSWERS.jewelry_care
+        : `Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
     } else if (questionId === 'gift_packaging') {
       try {
         const mongoose = require('mongoose');
         const freeGift = await mongoose.connection.db.collection('freegiftoffers').findOne({ isActive: true });
         let freeGiftText = '';
         if (freeGift && freeGift.name) {
-          freeGiftText = `• Active Store Perk: "${freeGift.name}" is currently active on purchases!\n`;
+          freeGiftText = isHi
+            ? `• Active Store Perk: "${freeGift.name}" is waqt purchases par free mil raha hai!\n`
+            : `• Active Store Perk: "${freeGift.name}" is currently active on purchases!\n`;
         }
-        answerText = `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk via email at support.fabuniqo@gmail.com with your Order ID!`;
+        answerText = isHi
+          ? `${HINGLISH_ANSWERS.gift_packaging}\n${freeGiftText}`
+          : `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk via email at support.fabuniqo@gmail.com with your Order ID!`;
       } catch (e) {
         console.error('[Dynamic Gift Answer Error]:', e);
       }
-    } else if (questionId === 'hypoallergenic_info') {
-      answerText = `🌿 Is It Skin-Friendly & Hypoallergenic?\n\n100% Skin-Friendly, Lead-Free & Nickel-Free!\n\n• Nickel & Lead Free: All our jewelry strictly adheres to safe metal standards, free from harsh nickel, lead, and toxic heavy metals that trigger allergic reactions.\n• No Itching or Green Marks: The skin-contact surface is sealed with biocompatible protective electroplating that prevents oxidation reactions against body sweat, keeping your skin clean and free of green or dark marks.\n• Earring Comfort: Our earrings and studs feature smooth, skin-safe posts and hypoallergenic silicone or metal stoppers to prevent earlobe irritation or swelling.\n• Lightweight Ergonomics: Engineered to be lightweight and comfortable for all-day wear at weddings, festive occasions, or daily office wear.\n\nTip: If you have an ultra-sensitive skin condition or specific metal allergy, feel free to consult our support concierge via email at support.fabuniqo@gmail.com before purchasing!`;
     } else if (questionId === 'cancel_order') {
-      answerText = `❌ How to Cancel or Change Your Order:\n\n1. Before Dispatch (Cancellations & Changes):\n• How to Cancel: Direct self-service cancellation is not available on the website. To request cancellation before dispatch:\n  - Within 24 hours: Go to Account > Orders, open your order, and submit a request using the 24-hour "Request Return / Refund" window, OR\n  - Contact Support: Reach out via email at support.fabuniqo@gmail.com with your Order ID for immediate cancellation.\n• How to Change Details: To update your shipping address, phone number, or modify ordered items, contact customer support immediately before your parcel is packed and handed over to the courier.\n• Prepaid Refunds: 100% of your paid amount will be refunded to your original payment method (UPI / Cards / NetBanking) within 5–7 business days.\n\n2. After Dispatch (In-Transit Orders):\n• Cannot Be Cancelled: Once your order is dispatched from our warehouse and handed over to the courier partner, it cannot be modified or cancelled in-transit.\n• Refusing Delivery (RTO Notice): If delivery is refused at your doorstep, the parcel returns as RTO. Per our policy:\n  - For Partial Prepaid (Advance + COD) orders, the advance payment is non-refundable to cover forward shipping and RTO reverse courier charges.\n  - For 100% Prepaid orders, return courier & forward shipping costs are deducted from the refund once verified at our warehouse.\n\n3. After Delivery:\n• If you receive a damaged or wrong item, you can raise a return request with a continuous unboxing video within 24 hours of delivery from your Account > Orders section.`;
+      answerText = isHi ? HINGLISH_ANSWERS.cancel_order : faq.answerText;
     } else if (questionId === 'delivered_not_received') {
       return res.status(200).json({
         success: true,
         faq: {
           questionId: 'delivered_not_received',
-          question: '⚠️ Order marked delivered but not received',
+          question: isHi ? (HINGLISH_QUESTIONS[questionId] || '⚠️ Order delivered dikha raha hai par mila nahi') : '⚠️ Order marked delivered but not received',
           actionType: 'DELIVERY_DISPUTE_PROMPT',
-          answerText:
-            'Please enter your Order ID (e.g. #FAB-ECOMM-187286) below so we can check the delivery status in our database and escalate with the courier:',
+          answerText: isHi
+            ? 'Kripya neeche apna Order ID (jaise #FAB-ECOMM-187286) likhein taaki hum database check karke courier se escalate kar sakein:'
+            : 'Please enter your Order ID (e.g. #FAB-ECOMM-187286) below so we can check the delivery status in our database and escalate with the courier:',
         },
       });
     } else if (questionId === 'check_pincode') {
@@ -120,19 +161,24 @@ exports.getAnswer = async (req, res) => {
         success: true,
         faq: {
           questionId: 'check_pincode',
-          question: faq.question || '📮 Check delivery to my PIN Code',
+          question: isHi ? (HINGLISH_QUESTIONS[questionId] || '📮 Apne PIN Code par delivery check karein') : (faq.question || '📮 Check delivery to my PIN Code'),
           actionType: 'CHECK_PINCODE',
-          answerText:
-            'Please type the 6-digit destination PIN code (e.g. 110001, 400050, 560001) in the message box below to check live courier delivery & serviceability:',
+          answerText: isHi
+            ? 'Delivery serviceability check karne ke liye neeche apna 6-digit PIN Code (jaise 110001, 400050) type karein:'
+            : 'Please type the 6-digit destination PIN code (e.g. 110001, 400050, 560001) in the message box below to check live courier delivery & serviceability:',
         },
       });
+    } else if (isHi && HINGLISH_ANSWERS[questionId]) {
+      answerText = HINGLISH_ANSWERS[questionId];
     }
+
+    const questionTitle = isHi && HINGLISH_QUESTIONS[faq.questionId] ? HINGLISH_QUESTIONS[faq.questionId] : faq.question;
 
     return res.status(200).json({
       success: true,
       faq: {
         questionId: faq.questionId,
-        question: faq.question,
+        question: questionTitle,
         actionType: faq.actionType,
         answerText,
         contactCard:
@@ -522,7 +568,8 @@ exports.raiseDeliveryTicket = async (req, res) => {
 // POST /api/chatbot/check-pincode - Live PIN code serviceability check
 exports.checkPincode = async (req, res) => {
   try {
-    const { pincode } = req.body;
+    const { pincode, lang } = req.body;
+    const isHi = String(lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
     const cleanPin = String(pincode || '').replace(/\D/g, '').trim();
 
     // If no valid 6-digit PIN was supplied, prompt user to enter one
@@ -530,7 +577,9 @@ exports.checkPincode = async (req, res) => {
       return res.status(200).json({
         success: true,
         needsInput: true,
-        text: 'Please type the 6-digit destination PIN code (e.g. 110001, 400050, 560001) in the message box below to check live delivery & serviceability:',
+        text: isHi
+          ? 'Delivery serviceability check karne ke liye neeche apna 6-digit destination PIN code (jaise 110001, 400050) type karein:'
+          : 'Please type the 6-digit destination PIN code (e.g. 110001, 400050, 560001) in the message box below to check live delivery & serviceability:',
       });
     }
 
@@ -561,6 +610,10 @@ exports.checkPincode = async (req, res) => {
       const estDays = liveData.estimatedDays ? `${liveData.estimatedDays} business days` : '3–5 business days';
       const charges = liveData.deliveryCharges ? Math.round(liveData.deliveryCharges) : 49;
 
+      const text = isHi
+        ? `✓ PIN Code ${cleanPin} par delivery active aur uplabdh hai!\n\n• Estimated Timeline: ${estDays}\n• Free Shipping: ₹${freeShippingMin} se upar ke orders par free delivery (kam amount par standard delivery fee ₹${charges})\n• Cash on Delivery (COD): Supported serviceable addresses par uplabdh hai.\n\nAap checkout par ye PIN code daal kar apna order complete kar sakte hain.`
+        : `✓ Delivery is active & available to PIN ${cleanPin}!\n\n• Estimated Timeline: ${estDays}\n• Free Shipping: Available on all orders above ₹${freeShippingMin} (standard delivery fee ₹${charges} for lower amounts)\n• Cash on Delivery (COD): Supported for serviceable addresses.\n\nYou can enter this destination PIN code at checkout to complete your order.`;
+
       return res.status(200).json({
         success: true,
         isServiceable: true,
@@ -568,14 +621,18 @@ exports.checkPincode = async (req, res) => {
         estimatedDays: estDays,
         deliveryCharge: charges,
         freeShippingAbove: freeShippingMin,
-        text: `✓ Delivery is active & available to PIN ${cleanPin}!\n\n• Estimated Timeline: ${estDays}\n• Free Shipping: Available on all orders above ₹${freeShippingMin} (standard delivery fee ₹${charges} for lower amounts)\n• Cash on Delivery (COD): Supported for serviceable addresses.\n\nYou can enter this destination PIN code at checkout to complete your order.`,
+        text,
       });
     } else if (liveData && liveData.isServiceable === false) {
+      const text = isHi
+        ? `Filhal PIN code ${cleanPin} par standard delivery uplabdh nahi hai.\n\nAgar ye aapka address hai, toh alternate delivery options ke liye support team se support.fabuniqo@gmail.com par contact karein.`
+        : `Currently, PIN code ${cleanPin} is not directly serviceable for standard delivery.\n\nIf this is your destination address, please contact our support team at support.fabuniqo@gmail.com to check for alternate delivery options.`;
+
       return res.status(200).json({
         success: true,
         isServiceable: false,
         pincode: cleanPin,
-        text: `Currently, PIN code ${cleanPin} is not directly serviceable for standard delivery.\n\nIf this is your destination address, please contact our support team at support.fabuniqo@gmail.com to check for alternate delivery options.`,
+        text,
       });
     }
 
@@ -604,7 +661,8 @@ exports.checkPincode = async (req, res) => {
 // POST /api/chatbot/check-return-refund - Live DB lookup for return and refund progress
 exports.checkReturnRefundStatus = async (req, res) => {
   try {
-    const { query, orderId, userId, phone, email } = req.body;
+    const { query, orderId, userId, phone, email, lang } = req.body;
+    const isHi = String(lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
     const cleanQuery = String(query || orderId || '').trim();
 
     // 1. If explicit orderId or query entered, search DB directly
@@ -616,28 +674,54 @@ exports.checkReturnRefundStatus = async (req, res) => {
         const isRefunded = order.paymentStatus === 'refunded' || refunds.length > 0 || (order.refunded && order.refunded > 0);
         const hasReturn = Boolean(ret.reasonType || ret.approvedBy || ret.rtoStatus || order.status === 'return_requested' || order.status === 'returned');
 
-        let msg = `📍 Return & Refund Status for Order #${order.orderId}:\n\n`;
-        if (hasReturn) {
-          const returnStatusLabel = ret.approvedBy
-            ? '✓ Approved (Reverse Pickup in Progress)'
-            : (ret.rtoStatus || 'Under Review by Returns Team');
-          const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
-          msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
-        } else {
-          msg += `• Return Status: No return request has been submitted for this order yet.\n• Current Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
-        }
+        let msg = '';
+        if (isHi) {
+          msg = `📍 Order #${order.orderId} ka Return & Refund Status:\n\n`;
+          if (hasReturn) {
+            const returnStatusLabel = ret.approvedBy
+              ? '✓ Approved (Reverse Pickup Progress me hai)'
+              : (ret.rtoStatus || 'Returns Team review kar rahi hai');
+            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
+            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+          } else {
+            msg += `• Return Status: Is order ke liye abhi tak koi return request darj nahi hui hai.\n• Current Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
+          }
 
-        if (isRefunded) {
-          const refAmount = refunds[0]?.amount || order.refunded || order.totalAmount;
-          msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
-        } else if (hasReturn) {
-          msg += `• Refund Status: Processing (Refund will be credited within 24–48 hours of warehouse inspection).\n• Estimated Amount: ₹${order.totalAmount}\n`;
-        } else {
-          msg += `• Refund Status: N/A (Order is active and not marked for refund).\n`;
-        }
+          if (isRefunded) {
+            const refAmount = refunds[0]?.amount || order.refunded || order.totalAmount;
+            msg += `• Refund Status: ✓ Refund Complete (₹${refAmount})\n• Destination: Original payment source / bank account me credit ho gaya hai.\n`;
+          } else if (hasReturn) {
+            msg += `• Refund Status: Processing (Warehouse inspection ke 24–48 ghante me credit hoga).\n• Estimated Amount: ₹${order.totalAmount}\n`;
+          } else {
+            msg += `• Refund Status: N/A (Order active hai, refund apply nahi hota).\n`;
+          }
 
-        msg += `• Return Policy: Returns are accepted strictly within 24 hours of delivery with mandatory uncut unboxing video (Damaged or Wrong item only).\n`;
-        msg += `\n👉 View all details or submit a return on your Profile Orders page:\n[📦 View All Orders in Profile](/account/orders)`;
+          msg += `• Return Policy: Delivery ke 24 ghante ke andar continuous uncut unboxing video ke saath return request accept hoti hai (sirf damaged ya wrong item ke liye).\n`;
+          msg += `\n👉 Full details dekhne ya return submit karne ke liye Profile Orders page par jayein:\n[📦 Apne Saare Orders Dekhein](/account/orders)`;
+        } else {
+          msg = `📍 Return & Refund Status for Order #${order.orderId}:\n\n`;
+          if (hasReturn) {
+            const returnStatusLabel = ret.approvedBy
+              ? '✓ Approved (Reverse Pickup in Progress)'
+              : (ret.rtoStatus || 'Under Review by Returns Team');
+            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
+            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+          } else {
+            msg += `• Return Status: No return request has been submitted for this order yet.\n• Current Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
+          }
+
+          if (isRefunded) {
+            const refAmount = refunds[0]?.amount || order.refunded || order.totalAmount;
+            msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
+          } else if (hasReturn) {
+            msg += `• Refund Status: Processing (Refund will be credited within 24–48 hours of warehouse inspection).\n• Estimated Amount: ₹${order.totalAmount}\n`;
+          } else {
+            msg += `• Refund Status: N/A (Order is active and not marked for refund).\n`;
+          }
+
+          msg += `• Return Policy: Returns are accepted strictly within 24 hours of delivery with mandatory uncut unboxing video (Damaged or Wrong item only).\n`;
+          msg += `\n👉 View all details or submit a return on your Profile Orders page:\n[📦 View All Orders in Profile](/account/orders)`;
+        }
 
         return res.status(200).json({
           success: true,
@@ -646,14 +730,16 @@ exports.checkReturnRefundStatus = async (req, res) => {
           hasReturn,
           isRefunded,
           redirectUrl: '/account/orders',
-          redirectLabel: 'View All Orders in Profile',
+          redirectLabel: isHi ? 'Apne Saare Orders Dekhein' : 'View All Orders in Profile',
           text: msg,
         });
       } else {
         return res.status(200).json({
           success: true,
           found: false,
-          text: `We could not find any order matching "${cleanQuery}". Please check your Order ID or phone number.`,
+          text: isHi
+            ? `"${cleanQuery}" se match karta koi order nahi mila. Kripya apna Order ID ya phone number check karein.`
+            : `We could not find any order matching "${cleanQuery}". Please check your Order ID or phone number.`,
         });
       }
     }
@@ -701,34 +787,66 @@ exports.checkReturnRefundStatus = async (req, res) => {
         const isRefunded = target.paymentStatus === 'refunded' || refunds.length > 0;
         const hasReturn = Boolean(ret.reasonType || ret.approvedBy || ret.rtoStatus);
 
-        let msg = `📍 Found your recent order #${target.orderId} in our database:\n\n`;
-        if (hasReturn) {
-          const returnStatusLabel = ret.approvedBy
-            ? '✓ Approved (Reverse Pickup in Progress)'
-            : (ret.rtoStatus || 'Under Review by Returns Team');
-          const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
-          msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
-        } else {
-          msg += `• Return Request: No active return request recorded for this order.\n• Order Status: ${String(target.status || 'Processing').toUpperCase()}\n`;
-        }
+        let msg = '';
+        if (isHi) {
+          msg = `📍 Aapka recent order #${target.orderId} database me mil gaya hai:\n\n`;
+          if (hasReturn) {
+            const returnStatusLabel = ret.approvedBy
+              ? '✓ Approved (Reverse Pickup Progress me hai)'
+              : (ret.rtoStatus || 'Returns Team review kar rahi hai');
+            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
+            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+          } else {
+            msg += `• Return Request: Is order ke liye koi active return request darj nahi hai.\n• Order Status: ${String(target.status || 'Processing').toUpperCase()}\n`;
+          }
 
-        if (isRefunded) {
-          const refAmount = refunds[0]?.amount || target.totalAmount;
-          msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
-        } else if (hasReturn) {
-          msg += `• Refund Status: Pending Warehouse Receipt & Quality Check (Refund initiated within 24–48 hours of inspection).\n• Estimated Refund: ₹${target.totalAmount}\n`;
-        } else {
-          msg += `• Refund Status: N/A (Order is active)\n`;
-        }
+          if (isRefunded) {
+            const refAmount = refunds[0]?.amount || target.totalAmount;
+            msg += `• Refund Status: ✓ Refund Complete (₹${refAmount})\n• Destination: Original source / bank account me transfer ho gaya hai.\n`;
+          } else if (hasReturn) {
+            msg += `• Refund Status: Warehouse quality check chal raha hai (Inspection ke 24–48 ghante me initiate hoga).\n• Estimated Refund: ₹${target.totalAmount}\n`;
+          } else {
+            msg += `• Refund Status: N/A (Order active hai)\n`;
+          }
 
-        msg += `• Return Policy: Return requests must be raised within 24 hours of delivery with mandatory unboxing video (Damaged or Wrong item only; exchanges are not supported).\n`;
+          msg += `• Return Policy: Delivery ke 24 ghante ke andar continuous unboxing video ke saath return request raise kar sakte hain (sirf damaged ya wrong item hone par).\n`;
 
-        if (recentOrders.length > 1) {
-          msg += `\n📦 Other Orders: You have ${recentOrders.length} orders on your account. To check individual statuses or raise a return request for any order, visit your Profile Orders page:\n`;
+          if (recentOrders.length > 1) {
+            msg += `\n📦 Other Orders: Aapke account me total ${recentOrders.length} orders hain. Individual status check karne ya return ke liye Profile Orders page par jayein:\n`;
+          } else {
+            msg += `\n👉 Full order details dekhne, invoice download karne ya return request ke liye Profile Orders page par jayein:\n`;
+          }
+          msg += `[📦 Apne Saare Orders Dekhein](/account/orders)`;
         } else {
-          msg += `\n👉 To view full order details, download invoices, or submit a return request, visit your Profile Orders page:\n`;
+          msg = `📍 Found your recent order #${target.orderId} in our database:\n\n`;
+          if (hasReturn) {
+            const returnStatusLabel = ret.approvedBy
+              ? '✓ Approved (Reverse Pickup in Progress)'
+              : (ret.rtoStatus || 'Under Review by Returns Team');
+            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
+            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+          } else {
+            msg += `• Return Request: No active return request recorded for this order.\n• Order Status: ${String(target.status || 'Processing').toUpperCase()}\n`;
+          }
+
+          if (isRefunded) {
+            const refAmount = refunds[0]?.amount || target.totalAmount;
+            msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
+          } else if (hasReturn) {
+            msg += `• Refund Status: Pending Warehouse Receipt & Quality Check (Refund initiated within 24–48 hours of inspection).\n• Estimated Refund: ₹${target.totalAmount}\n`;
+          } else {
+            msg += `• Refund Status: N/A (Order is active)\n`;
+          }
+
+          msg += `• Return Policy: Return requests must be raised within 24 hours of delivery with mandatory unboxing video (Damaged or Wrong item only; exchanges are not supported).\n`;
+
+          if (recentOrders.length > 1) {
+            msg += `\n📦 Other Orders: You have ${recentOrders.length} orders on your account. To check individual statuses or raise a return request for any order, visit your Profile Orders page:\n`;
+          } else {
+            msg += `\n👉 To view full order details, download invoices, or submit a return request, visit your Profile Orders page:\n`;
+          }
+          msg += `[📦 View All Orders in Profile](/account/orders)`;
         }
-        msg += `[📦 View All Orders in Profile](/account/orders)`;
 
         return res.status(200).json({
           success: true,
@@ -738,7 +856,7 @@ exports.checkReturnRefundStatus = async (req, res) => {
           hasReturn,
           isRefunded,
           redirectUrl: '/account/orders',
-          redirectLabel: 'View All Orders in Profile',
+          redirectLabel: isHi ? 'Apne Saare Orders Dekhein' : 'View All Orders in Profile',
           text: msg,
         });
       }
@@ -750,8 +868,10 @@ exports.checkReturnRefundStatus = async (req, res) => {
       found: false,
       needsInput: true,
       redirectUrl: '/account/orders',
-      redirectLabel: 'Go to My Orders',
-      text: 'Please enter your Order ID (e.g. #1024 or FAB-ECOMM-...) to check your live return and refund status from the database, or view all your orders on your Profile Orders page:\n[📦 Go to My Orders](/account/orders)',
+      redirectLabel: isHi ? 'Apne Orders Dekhein' : 'Go to My Orders',
+      text: isHi
+        ? 'Database se live return aur refund status check karne ke liye apna Order ID (jaise #FAB-ECOMM-...) likhein, ya Profile Orders page par jayein:\n[📦 Apne Orders pe Jayein](/account/orders)'
+        : 'Please enter your Order ID (e.g. #1024 or FAB-ECOMM-...) to check your live return and refund status from the database, or view all your orders on your Profile Orders page:\n[📦 Go to My Orders](/account/orders)',
     });
   } catch (err) {
     console.error('[checkReturnRefundStatus Error]:', err);
@@ -791,7 +911,10 @@ exports.getExchangeInquiry = async (req, res) => {
       }
     }
 
-    const text = `${orderInfo}📋 Exchange Policy Notice:\n\nDirect exchanges for a different size, fit, or design are not supported per store policy.\n\n• Eligible Returns: We only accept return requests if you received a Damaged item or Wrong product delivered.\n• Reporting Window: The return request must be raised within 24 hours of delivery from your Account > Orders page.\n• Mandatory Proofs: A continuous, uncut unboxing video (up to 60MB) and 1 to 3 clear photos of the issue.\n• Need a Different Piece? You can place a fresh order on our store for the desired item or design.\n\nFor questions, reach out to our team at support.fabuniqo@gmail.com.`;
+    const isHi = String(req.body.lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
+    const text = isHi
+      ? `${orderInfo}📋 Exchange Policy Notice:\n\nStore policy ke mutabiq dusre size ya design ke liye direct exchange uplabdh nahi hai.\n\n• Eligible Returns: Hum sirf Damaged item ya Wrong product deliver hone par return accept karte hain.\n• Window: Delivery ke 24 ghante ke andar Account > Orders page se return request raise karni hoti hai.\n• Mandatory Proofs: Shuru se aakhir tak bina cut ka continuous unboxing video aur 1 se 3 clear photos.\n• Dusra Piece Chahiye? Aap store se apni pasandida item ka naya fresh order place kar sakte hain.\n\nKisi bhi sahayata ke liye support.fabuniqo@gmail.com par message karein.`
+      : `${orderInfo}📋 Exchange Policy Notice:\n\nDirect exchanges for a different size, fit, or design are not supported per store policy.\n\n• Eligible Returns: We only accept return requests if you received a Damaged item or Wrong product delivered.\n• Reporting Window: The return request must be raised within 24 hours of delivery from your Account > Orders page.\n• Mandatory Proofs: A continuous, uncut unboxing video (up to 60MB) and 1 to 3 clear photos of the issue.\n• Need a Different Piece? You can place a fresh order on our store for the desired item or design.\n\nFor questions, reach out to our team at support.fabuniqo@gmail.com.`;
 
     return res.status(200).json({
       success: true,
@@ -806,12 +929,18 @@ exports.getExchangeInquiry = async (req, res) => {
 // POST /api/chatbot/cod-refund-info - Check DB checkout settings & explain COD refund process
 exports.getCodRefundInfo = async (req, res) => {
   try {
+    const isHi = String(req.body.lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
     const mongoose = require('mongoose');
     const checkout = await mongoose.connection.db.collection('checkoutsettings').findOne({});
     const partialActive = checkout ? Boolean(checkout.partialPaymentEnabled) : false;
     const partialPercent = (checkout && checkout.partialPaymentPercent) || 30;
 
-    const text = `💳 How Cash on Delivery (COD) Refunds Work:\n\nBecause delivery executives cannot hand over paper cash during doorstep return pickups, all COD refunds are processed electronically:\n\n1. Direct Bank / UPI Transfer:\n   • Once the returned item reaches our warehouse and passes quality inspection, our finance desk will request your UPI ID (Google Pay, PhonePe, Paytm) or Bank Account Details.\n   • The full refund amount is credited directly to your bank account within 24 to 48 business hours.\n\n2. Instant Store Credit / Voucher (Optional):\n   • If you'd like to order a replacement or another piece right away, we can issue an instant 100% store coupon code with zero waiting time.\n\n${partialActive ? `• Note for Partial COD: The ${partialPercent}% online advance and any doorstep cash collected are combined into a single full refund.\n\n` : ''}✓ All refunds are 100% tracked in our system with SMS & chat confirmations.`;
+    let text = '';
+    if (isHi) {
+      text = `💳 COD Orders Ka Refund Kaise Milta Hai:\n\nDoorstep pickup ke waqt delivery executive cash nahi de sakte, isliye COD orders ka refund electronically transfer kiya jata hai:\n\n1. Direct Bank / UPI Transfer:\n   • Returned item warehouse pahunch kar inspection pass hote hi humari finance desk aapse UPI ID (Google Pay, PhonePe, Paytm) ya Bank Account Details leti hai.\n   • Pura refund amount 24 se 48 ghante ke andar directly aapke bank account mein credit ho jata hai.\n\n2. Instant Store Credit / Voucher (Optional):\n   • Agar aap turant koi dusra item order karna chahte hain, toh bina kisi wait ke 100% store coupon code le sakte hain.\n\n${partialActive ? `• Partial COD Note: ${partialPercent}% advance aur doorstep cash dono combine karke single refund banta hai.\n\n` : ''}✓ Sabhi refunds system me track hote hain SMS aur email confirmation ke saath.`;
+    } else {
+      text = `💳 How Cash on Delivery (COD) Refunds Work:\n\nBecause delivery executives cannot hand over paper cash during doorstep return pickups, all COD refunds are processed electronically:\n\n1. Direct Bank / UPI Transfer:\n   • Once the returned item reaches our warehouse and passes quality inspection, our finance desk will request your UPI ID (Google Pay, PhonePe, Paytm) or Bank Account Details.\n   • The full refund amount is credited directly to your bank account within 24 to 48 business hours.\n\n2. Instant Store Credit / Voucher (Optional):\n   • If you'd like to order a replacement or another piece right away, we can issue an instant 100% store coupon code with zero waiting time.\n\n${partialActive ? `• Note for Partial COD: The ${partialPercent}% online advance and any doorstep cash collected are combined into a single full refund.\n\n` : ''}✓ All refunds are 100% tracked in our system with SMS & chat confirmations.`;
+    }
 
     return res.status(200).json({
       success: true,
@@ -826,6 +955,7 @@ exports.getCodRefundInfo = async (req, res) => {
 // POST /api/chatbot/partial-payment-info - Check DB checkout settings for partial COD
 exports.getPartialPaymentInfo = async (req, res) => {
   try {
+    const isHi = String(req.body.lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
     const mongoose = require('mongoose');
     const checkout = await mongoose.connection.db.collection('checkoutsettings').findOne({});
     const partialEnabled = checkout ? Boolean(checkout.partialPaymentEnabled) : true;
@@ -833,12 +963,22 @@ exports.getPartialPaymentInfo = async (req, res) => {
     const codEnabled = checkout ? Boolean(checkout.codEnabled) : true;
 
     let text = '';
-    if (partialEnabled) {
-      text = `🪙 How Partial Payment (${partialPercent}% Advance + COD) Works:\n\nOur store provides a convenient Partial COD option for eligible orders:\n\n• Step 1: Pay ${partialPercent}% advance online at checkout via UPI or Card to confirm your order and reserve warehouse packaging.\n• Step 2: The remaining ${100 - partialPercent}% balance is paid directly in cash or UPI to the delivery executive when the parcel reaches your doorstep!\n• Benefit: You don't have to pay 100% upfront, giving you complete peace of mind while securing guaranteed dispatch.\n\n✓ You can select "Partial Payment (${partialPercent}% Online + Cash on Delivery)" on the checkout payment screen.`;
-    } else if (codEnabled) {
-      text = `🪙 Payment Options at Checkout:\n\nCurrently, 100% Cash on Delivery (COD) is available at checkout. You can pay the full amount directly to the courier executive upon doorstep delivery.`;
+    if (isHi) {
+      if (partialEnabled) {
+        text = `🪙 Partial Payment (${partialPercent}% Advance + COD) Kaise Kaam Karta Hai:\n\n• Step 1: Order confirm karne ke liye checkout par ${partialPercent}% advance UPI ya Card se pay karein.\n• Step 2: Baki ${100 - partialPercent}% balance parcel doorstep par aane ke baad delivery boy ko cash ya UPI se dein!\n• Benefit: Aapko shuru me pura payment nahi karna padta aur dispatch guarantee rehti hai.\n\n✓ Checkout screen par aap "Partial Payment (${partialPercent}% Online + Cash on Delivery)" select kar sakte hain.`;
+      } else if (codEnabled) {
+        text = `🪙 Checkout Payment Options:\n\nFilhal checkout par 100% Cash on Delivery (COD) uplabdh hai. Delivery ke waqt pura amount courier executive ko de sakte hain.`;
+      } else {
+        text = `🪙 Checkout Payment Options:\n\nFilhal checkout par UPI, Cards aur Net Banking se 100% secure online payment uplabdh hai.`;
+      }
     } else {
-      text = `🪙 Payment Options at Checkout:\n\nCurrently, online payment via UPI, Cards, and Net Banking is available at checkout for 100% contactless delivery.`;
+      if (partialEnabled) {
+        text = `🪙 How Partial Payment (${partialPercent}% Advance + COD) Works:\n\nOur store provides a convenient Partial COD option for eligible orders:\n\n• Step 1: Pay ${partialPercent}% advance online at checkout via UPI or Card to confirm your order and reserve warehouse packaging.\n• Step 2: The remaining ${100 - partialPercent}% balance is paid directly in cash or UPI to the delivery executive when the parcel reaches your doorstep!\n• Benefit: You don't have to pay 100% upfront, giving you complete peace of mind while securing guaranteed dispatch.\n\n✓ You can select "Partial Payment (${partialPercent}% Online + Cash on Delivery)" on the checkout payment screen.`;
+      } else if (codEnabled) {
+        text = `🪙 Payment Options at Checkout:\n\nCurrently, 100% Cash on Delivery (COD) is available at checkout. You can pay the full amount directly to the courier executive upon doorstep delivery.`;
+      } else {
+        text = `🪙 Payment Options at Checkout:\n\nCurrently, online payment via UPI, Cards, and Net Banking is available at checkout for 100% contactless delivery.`;
+      }
     }
 
     return res.status(200).json({ success: true, text });
@@ -851,11 +991,17 @@ exports.getPartialPaymentInfo = async (req, res) => {
 // POST /api/chatbot/free-shipping-info - Check DB freeshippingoffers collection
 exports.getFreeShippingInfo = async (req, res) => {
   try {
+    const isHi = String(req.body.lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
     const mongoose = require('mongoose');
     const offer = await mongoose.connection.db.collection('freeshippingoffers').findOne({ isActive: true });
     const threshold = offer && offer.minCartValue && offer.minCartValue >= 500 ? offer.minCartValue : 1099;
 
-    const text = `🚚 How to Unlock Free Shipping:\n\n✓ Free Express Shipping is active on all orders above ₹${threshold} across India!\n\n• Qualifying Cart Value: Add items totaling ₹${threshold} or more to your shopping cart.\n• Zero Coupon Required: Our system automatically waives all delivery charges at checkout once your cart crosses ₹${threshold}.\n• Standard Delivery Fee: For orders below ₹${threshold}, a flat courier rate is calculated based on destination PIN code.\n\nTip: You can add our budget-friendly earrings or accessories starting from ₹29 to hit the ₹${threshold} free delivery limit!`;
+    let text = '';
+    if (isHi) {
+      text = `🚚 Free Shipping Offer:\n\n✓ Bharat ke sabhi locations par ₹${threshold} se upar ke orders par Free Shipping active hai!\n\n• Minimum Cart Value: Cart mein ₹${threshold} ya usse zyada ke items add karein.\n• Auto Applied: Cart amount ₹${threshold} hote hi checkout par delivery charges automatically zero ho jate hain.\n• Isse kam cart amount par standard courier fee lagti hai.\n\nTip: Aap budget earrings ya accessories (starting ₹29) add karke ₹${threshold} ka free delivery limit unlock kar sakte hain!`;
+    } else {
+      text = `🚚 How to Unlock Free Shipping:\n\n✓ Free Express Shipping is active on all orders above ₹${threshold} across India!\n\n• Qualifying Cart Value: Add items totaling ₹${threshold} or more to your shopping cart.\n• Zero Coupon Required: Our system automatically waives all delivery charges at checkout once your cart crosses ₹${threshold}.\n• Standard Delivery Fee: For orders below ₹${threshold}, a flat courier rate is calculated based on destination PIN code.\n\nTip: You can add our budget-friendly earrings or accessories starting from ₹29 to hit the ₹${threshold} free delivery limit!`;
+    }
 
     return res.status(200).json({ success: true, text });
   } catch (err) {
@@ -867,7 +1013,10 @@ exports.getFreeShippingInfo = async (req, res) => {
 // POST /api/chatbot/emi-info - Check DB and payment options for EMI / Pay Later
 exports.getEmiInfo = async (req, res) => {
   try {
-    const text = `💳 EMI & Pay Later Availability:\n\nYes! Flexible installment and payment options are available through our secure gateway at checkout:\n\n• Credit Card EMI: Available on major bank credit cards (HDFC, ICICI, SBI, Axis, Kotak, etc.) for eligible cart values.\n• Pay Later: Available via eligible bank partner cards and supported Pay Later accounts during payment gateway checkout.\n• Partial Payment Alternative: If you prefer paying in parts without credit card interest, you can choose our store's Partial COD (30% advance now + 70% at delivery)!\n\nTip: To view available monthly EMI breakdown, proceed to checkout and select "Credit / Debit / EMI" under payment options.`;
+    const isHi = String(req.body.lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
+    const text = isHi
+      ? `💳 EMI aur Pay Later Suvidha:\n\nCheckout par payment gateway ke zariye installment aur Pay Later options uplabdh hain:\n\n• Credit Card EMI: HDFC, ICICI, SBI, Axis samet sabhi major bank cards par uplabdh hai.\n• Pay Later: Eligible bank accounts aur supported wallet accounts par uplabdh hai.\n• Partial COD Alternative: Agar bina interest ke parts me pay karna chahein, toh Partial COD (30% advance + 70% delivery par) select kar sakte hain!`
+      : `💳 EMI & Pay Later Availability:\n\nYes! Flexible installment and payment options are available through our secure gateway at checkout:\n\n• Credit Card EMI: Available on major bank credit cards (HDFC, ICICI, SBI, Axis, Kotak, etc.) for eligible cart values.\n• Pay Later: Available via eligible bank partner cards and supported Pay Later accounts during payment gateway checkout.\n• Partial Payment Alternative: If you prefer paying in parts without credit card interest, you can choose our store's Partial COD (30% advance now + 70% at delivery)!\n\nTip: To view available monthly EMI breakdown, proceed to checkout and select "Credit / Debit / EMI" under payment options.`;
 
     return res.status(200).json({ success: true, text });
   } catch (err) {
@@ -879,7 +1028,10 @@ exports.getEmiInfo = async (req, res) => {
 // POST /api/chatbot/payment-safety-info - Explain encryption & gateway security
 exports.getPaymentSafetyInfo = async (req, res) => {
   try {
-    const text = `🔒 Is Online Payment Safe & Secure?\n\nYes, 100% safe and secure! Your payments and personal details are always protected:\n\n• Bank-Grade Security: All payments are processed through government-authorized, secure bank servers with full encryption.\n• Card Details Are Never Saved: We never store your card numbers, CVV, ATM PINs, or banking passwords.\n• Safe UPI Payments: When paying with Google Pay, PhonePe, or Paytm, you approve the payment directly inside your trusted UPI app using your private UPI PIN.\n• Instant Confirmation: You receive an instant SMS and email with your confirmed Order ID as soon as your payment succeeds.\n• Cash on Delivery (COD) Option: Prefer paying at your doorstep? You can also choose Cash on Delivery at checkout!`;
+    const isHi = String(req.body.lang || req.query.lang || req.headers['x-chat-lang']).toLowerCase() === 'hi';
+    const text = isHi
+      ? HINGLISH_ANSWERS.payment_safety
+      : `🔒 Is Online Payment Safe & Secure?\n\nYes, 100% safe and secure! Your payments and personal details are always protected:\n\n• Bank-Grade Security: All payments are processed through government-authorized, secure bank servers with full encryption.\n• Card Details Are Never Saved: We never store your card numbers, CVV, ATM PINs, or banking passwords.\n• Safe UPI Payments: When paying with Google Pay, PhonePe, or Paytm, you approve the payment directly inside your trusted UPI app using your private UPI PIN.\n• Instant Confirmation: You receive an instant SMS and email with your confirmed Order ID as soon as your payment succeeds.\n• Cash on Delivery (COD) Option: Prefer paying at your doorstep? You can also choose Cash on Delivery at checkout!`;
 
     return res.status(200).json({ success: true, text });
   } catch (err) {
