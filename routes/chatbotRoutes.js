@@ -26,6 +26,8 @@ router.post('/hypoallergenic-info', chatbotController.getHypoallergenicInfo);
 router.get('/cheaper-products', chatbotController.getCheaperProducts);
 router.get('/expensive-products', chatbotController.getExpensiveProducts);
 router.post('/ticket', chatbotController.createTicket);
+router.post('/delivery-dispute-check', chatbotController.checkDeliveryDispute);
+router.post('/raise-delivery-ticket', chatbotController.raiseDeliveryTicket);
 router.post('/query', chatbotController.handleGeneralQuery);
 
 module.exports = router;

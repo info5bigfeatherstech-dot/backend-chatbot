@@ -87,7 +87,7 @@ exports.getAnswer = async (req, res) => {
         console.error('[Dynamic COD Answer Error]:', e);
       }
     } else if (questionId === 'jewelry_care') {
-      answerText = `✨ Jewelry Care: Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
+      answerText = `Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
     } else if (questionId === 'gift_packaging') {
       try {
         const mongoose = require('mongoose');
@@ -96,12 +96,36 @@ exports.getAnswer = async (req, res) => {
         if (freeGift && freeGift.name) {
           freeGiftText = `• Active Store Perk: "${freeGift.name}" is currently active on purchases!\n`;
         }
-        answerText = `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk on WhatsApp at 8527054683 with your Order ID!`;
+        answerText = `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk via email at support.fabuniqo@gmail.com with your Order ID!`;
       } catch (e) {
         console.error('[Dynamic Gift Answer Error]:', e);
       }
     } else if (questionId === 'hypoallergenic_info') {
-      answerText = `🌿 Is It Skin-Friendly & Hypoallergenic?\n\n100% Skin-Friendly, Lead-Free & Nickel-Free!\n\n• Nickel & Lead Free: All our jewelry strictly adheres to safe metal standards, free from harsh nickel, lead, and toxic heavy metals that trigger allergic reactions.\n• No Itching or Green Marks: The skin-contact surface is sealed with biocompatible protective electroplating that prevents oxidation reactions against body sweat, keeping your skin clean and free of green or dark marks.\n• Earring Comfort: Our earrings and studs feature smooth, skin-safe posts and hypoallergenic silicone or metal stoppers to prevent earlobe irritation or swelling.\n• Lightweight Ergonomics: Engineered to be lightweight and comfortable for all-day wear at weddings, festive occasions, or daily office wear.\n\nTip: If you have an ultra-sensitive skin condition or specific metal allergy, feel free to consult our support concierge on WhatsApp at 8527054683 before purchasing!`;
+      answerText = `🌿 Is It Skin-Friendly & Hypoallergenic?\n\n100% Skin-Friendly, Lead-Free & Nickel-Free!\n\n• Nickel & Lead Free: All our jewelry strictly adheres to safe metal standards, free from harsh nickel, lead, and toxic heavy metals that trigger allergic reactions.\n• No Itching or Green Marks: The skin-contact surface is sealed with biocompatible protective electroplating that prevents oxidation reactions against body sweat, keeping your skin clean and free of green or dark marks.\n• Earring Comfort: Our earrings and studs feature smooth, skin-safe posts and hypoallergenic silicone or metal stoppers to prevent earlobe irritation or swelling.\n• Lightweight Ergonomics: Engineered to be lightweight and comfortable for all-day wear at weddings, festive occasions, or daily office wear.\n\nTip: If you have an ultra-sensitive skin condition or specific metal allergy, feel free to consult our support concierge via email at support.fabuniqo@gmail.com before purchasing!`;
+    } else if (questionId === 'cancel_order') {
+      answerText = `❌ How to Cancel or Change Your Order:\n\n1. Before Dispatch (Cancellations & Changes):\n• How to Cancel: Direct self-service cancellation is not available on the website. To request cancellation before dispatch:\n  - Within 24 hours: Go to Account > Orders, open your order, and submit a request using the 24-hour "Request Return / Refund" window, OR\n  - Contact Support: Reach out via email at support.fabuniqo@gmail.com with your Order ID for immediate cancellation.\n• How to Change Details: To update your shipping address, phone number, or modify ordered items, contact customer support immediately before your parcel is packed and handed over to the courier.\n• Prepaid Refunds: 100% of your paid amount will be refunded to your original payment method (UPI / Cards / NetBanking) within 5–7 business days.\n\n2. After Dispatch (In-Transit Orders):\n• Cannot Be Cancelled: Once your order is dispatched from our warehouse and handed over to the courier partner, it cannot be modified or cancelled in-transit.\n• Refusing Delivery (RTO Notice): If delivery is refused at your doorstep, the parcel returns as RTO. Per our policy:\n  - For Partial Prepaid (Advance + COD) orders, the advance payment is non-refundable to cover forward shipping and RTO reverse courier charges.\n  - For 100% Prepaid orders, return courier & forward shipping costs are deducted from the refund once verified at our warehouse.\n\n3. After Delivery:\n• If you receive a damaged or wrong item, you can raise a return request with a continuous unboxing video within 24 hours of delivery from your Account > Orders section.`;
+    } else if (questionId === 'delivered_not_received') {
+      return res.status(200).json({
+        success: true,
+        faq: {
+          questionId: 'delivered_not_received',
+          question: '⚠️ Order marked delivered but not received',
+          actionType: 'DELIVERY_DISPUTE_PROMPT',
+          answerText:
+            'Please enter your Order ID (e.g. #FAB-ECOMM-187286) below so we can check the delivery status in our database and escalate with the courier:',
+        },
+      });
+    } else if (questionId === 'check_pincode') {
+      return res.status(200).json({
+        success: true,
+        faq: {
+          questionId: 'check_pincode',
+          question: faq.question || '📮 Check delivery to my PIN Code',
+          actionType: 'CHECK_PINCODE',
+          answerText:
+            'Please type the 6-digit destination PIN code (e.g. 110001, 400050, 560001) in the message box below to check live courier delivery & serviceability:',
+        },
+      });
     }
 
     return res.status(200).json({
@@ -114,10 +138,8 @@ exports.getAnswer = async (req, res) => {
         contactCard:
           faq.actionType === 'CONTACT_CARD'
             ? {
-                phone: process.env.STORE_PHONE || '8527054683',
-                whatsapp: process.env.STORE_WHATSAPP || '8527054683',
                 email: process.env.STORE_EMAIL || 'support.fabuniqo@gmail.com',
-                hours: process.env.SUPPORT_HOURS || '10:00 AM - 7:00 PM IST',
+                hours: process.env.SUPPORT_HOURS || '10:00 AM - 7:00 PM IST (Mon-Sat)',
               }
             : null,
       },
@@ -129,13 +151,10 @@ exports.getAnswer = async (req, res) => {
 };
 
 // Helper: Format an order document for chatbot response
-function formatOrderResponse(order) {
+async function formatOrderResponse(order) {
   if (!order) return null;
   const city = order.addressSnapshot?.city || order.shippingAddress?.city || '';
-  const courier =
-    order.shipmentTracking?.courierName ||
-    order.shippingSnapshot?.courierName ||
-    'Shadowfax Surface';
+  const courier = 'Express Delivery';
   const trackingNumber =
     order.shipmentTracking?.trackingNumber ||
     order.shipmentInfo?.fulfillmentArtifactAwb ||
@@ -151,6 +170,23 @@ function formatOrderResponse(order) {
     order.shippingWeightSnapshot?.lines?.[0]?.productName ||
     order.items?.[0]?.productName ||
     (order.items?.length ? `${order.items.length} item${order.items.length > 1 ? 's' : ''}` : null);
+
+  // Fetch product thumbnail image for the first item
+  let itemImage = '';
+  try {
+    const firstProductId = order.items?.[0]?.productId || order.shippingWeightSnapshot?.lines?.[0]?.productId;
+    if (firstProductId) {
+      const prod = await Product.findById(firstProductId).select('images variants.images').lean();
+      itemImage =
+        prod?.variants?.[0]?.images?.[0]?.url ||
+        prod?.images?.[0]?.url ||
+        order.items?.[0]?.image ||
+        order.items?.[0]?.imageUrl ||
+        '';
+    }
+  } catch (e) {
+    console.warn('[formatOrderResponse image lookup error]:', e.message);
+  }
 
   const formattedDate = order.createdAt
     ? new Date(order.createdAt).toLocaleDateString('en-IN', {
@@ -189,6 +225,7 @@ function formatOrderResponse(order) {
     refunded,
     orderDate: formattedDate,
     itemName: firstItem,
+    itemImage,
     courier,
     trackingNumber,
     trackingUrl,
@@ -217,7 +254,7 @@ async function findOrderInDb(query) {
     ],
   }).sort({ createdAt: -1 });
 
-  return formatOrderResponse(order);
+  return await formatOrderResponse(order);
 }
 
 // POST /api/chatbot/user-orders - Fetch recent orders for logged-in user automatically
@@ -254,10 +291,12 @@ exports.getUserOrders = async (req, res) => {
       .limit(maxLimit)
       .lean();
 
+    const formattedOrders = await Promise.all(orders.map(formatOrderResponse));
+
     return res.status(200).json({
       success: true,
       count: orders.length,
-      orders: orders.map(formatOrderResponse).filter(Boolean),
+      orders: formattedOrders.filter(Boolean),
     });
   } catch (err) {
     console.error('[getUserOrders Error]:', err);
@@ -398,74 +437,100 @@ exports.createTicket = async (req, res) => {
   }
 };
 
+// POST /api/chatbot/delivery-dispute-check - Verify order delivery status when customer reports marked delivered but not received
+exports.checkDeliveryDispute = async (req, res) => {
+  try {
+    const { orderId, query } = req.body;
+    const lookupId = orderId || query;
+    if (!lookupId) {
+      return res.status(400).json({ success: false, message: 'Order ID is required' });
+    }
+
+    const formatted = await findOrderInDb(lookupId);
+    if (!formatted) {
+      return res.status(200).json({
+        success: true,
+        found: false,
+        message: `We could not find any order matching "${lookupId}". Please check your Order ID (e.g. #FAB-ECOMM-187286) or registered phone number.`,
+      });
+    }
+
+    const isDelivered = String(formatted.status || '').toLowerCase() === 'delivered';
+    const statusUpper = String(formatted.status || 'PROCESSING').toUpperCase();
+
+    if (!isDelivered) {
+      const text = `📌 Order #${formatted.orderId} Delivery Status:\n\n• Current Status: ${statusUpper}\n• Status Update: This order has NOT been marked delivered yet. It is currently in progress.\n• Estimated Delivery: ${formatted.estimatedDelivery || 'Typically 3–5 business days'}\n• Payment: ${formatted.paymentMethod} (₹${formatted.totalAmount})\n\nYou can track the shipment progress live below:`;
+      return res.status(200).json({
+        success: true,
+        found: true,
+        isDelivered: false,
+        order: formatted,
+        text,
+      });
+    }
+
+    // Order is delivered in DB
+    const text = `📌 Order #${formatted.orderId} is currently marked as DELIVERED in our system:\n\n• Status: DELIVERED\n• Destination: ${formatted.customerCity || 'Customer Address'}\n• Payment: ${formatted.paymentMethod} (₹${formatted.totalAmount})\n• Shipping: Express Delivery\n\n⚠️ Haven't received your package?\n1. Please check with your building security, reception desk, or family members (packages are occasionally left with security or received slightly before OTP confirmation).\n2. If you still have not received your parcel, please click "Raise Ticket for this Order" below. Our dedicated logistics escalation team will obtain the Proof of Delivery (POD) and resolve this for you within 24–48 hours.`;
+
+    return res.status(200).json({
+      success: true,
+      found: true,
+      isDelivered: true,
+      order: formatted,
+      text,
+    });
+  } catch (err) {
+    console.error('[checkDeliveryDispute Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
+// POST /api/chatbot/raise-delivery-ticket - Raise an escalation ticket for an order marked delivered but not received
+exports.raiseDeliveryTicket = async (req, res) => {
+  try {
+    const { orderId, customerName, contact, message } = req.body;
+    if (!orderId) {
+      return res.status(400).json({ success: false, message: 'Order ID is required' });
+    }
+
+    const ticket = await ChatTicket.create({
+      customerName: customerName || 'Customer',
+      contact: contact || String(orderId),
+      message:
+        message ||
+        `Escalation: Order #${orderId} is marked DELIVERED in the database, but customer reported not receiving the package. Courier POD and delivery OTP verification requested.`,
+      category: 'Undelivered Order Escalation',
+    });
+
+    const ticketRef = ticket._id.toString().slice(-6).toUpperCase();
+    return res.status(201).json({
+      success: true,
+      ticketId: ticket._id,
+      ticketRef,
+      message: `✅ Escalation Ticket #${ticketRef} has been raised for Order #${orderId}!\n\nOur logistics escalation desk has logged your dispute. We will verify the Proof of Delivery (POD) and contact you at ${contact || 'your registered contact'} within 24–48 hours.`,
+      contactCard: {
+        email: process.env.STORE_EMAIL || 'support.fabuniqo@gmail.com',
+        hours: process.env.SUPPORT_HOURS || '10:00 AM - 7:00 PM IST (Mon-Sat)',
+      },
+    });
+  } catch (err) {
+    console.error('[raiseDeliveryTicket Error]:', err);
+    return res.status(500).json({ success: false, message: 'Server error' });
+  }
+};
+
 // POST /api/chatbot/check-pincode - Live PIN code serviceability check
 exports.checkPincode = async (req, res) => {
   try {
-    const { pincode, userId, phone, email } = req.body;
-    let cleanPin = String(pincode || '').replace(/\D/g, '').trim();
-    let savedLocationInfo = null;
+    const { pincode } = req.body;
+    const cleanPin = String(pincode || '').replace(/\D/g, '').trim();
 
-    // 1. If pincode wasn't explicitly provided, check database for user's saved address!
-    if (!cleanPin || cleanPin.length !== 6) {
-      try {
-        const mongoose = require('mongoose');
-        const addressesCol = mongoose.connection.db.collection('addresses');
-        const orConditions = [];
-
-        if (userId) {
-          if (mongoose.Types.ObjectId.isValid(userId)) {
-            orConditions.push({ userId: new mongoose.Types.ObjectId(userId) });
-          }
-          orConditions.push({ userId: String(userId) });
-        }
-        if (phone) {
-          const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
-          orConditions.push({ phone: cleanPhone }, { phone: String(phone).trim() });
-        }
-        if (email) {
-          orConditions.push({ email: String(email).trim().toLowerCase() });
-        }
-
-        let savedAddress = null;
-        if (orConditions.length > 0) {
-          savedAddress = await addressesCol.findOne(
-            { $or: orConditions, postalCode: { $exists: true, $ne: '' } },
-            { sort: { isDefault: -1, updatedAt: -1 } }
-          );
-        }
-
-        // Also check user's most recent order in DB as fallback
-        if (!savedAddress && orConditions.length > 0) {
-          const ordersCol = mongoose.connection.db.collection('orders');
-          const lastOrder = await ordersCol.findOne(
-            { $or: orConditions, 'addressSnapshot.postalCode': { $exists: true, $ne: '' } },
-            { sort: { createdAt: -1 } }
-          );
-          if (lastOrder && lastOrder.addressSnapshot) {
-            savedAddress = {
-              postalCode: lastOrder.addressSnapshot.postalCode || lastOrder.shippingAddress?.postalCode,
-              city: lastOrder.addressSnapshot.city || lastOrder.shippingAddress?.city,
-              fullName: lastOrder.addressSnapshot.fullName,
-            };
-          }
-        }
-
-        if (savedAddress && savedAddress.postalCode) {
-          cleanPin = String(savedAddress.postalCode).replace(/\D/g, '').trim();
-          savedLocationInfo = savedAddress.city
-            ? `${savedAddress.city} (PIN: ${cleanPin})`
-            : `PIN: ${cleanPin}`;
-        }
-      } catch (e) {
-        console.warn('[checkPincode] Error checking saved address:', e.message);
-      }
-    }
-
+    // If no valid 6-digit PIN was supplied, prompt user to enter one
     if (!cleanPin || cleanPin.length !== 6) {
       return res.status(200).json({
         success: true,
         needsInput: true,
-        text: 'Please type your 6-digit destination PIN code (e.g. 110001, 400001) in the box below to check live courier delivery & serviceability:',
+        text: 'Please type the 6-digit destination PIN code (e.g. 110001, 400050, 560001) in the message box below to check live delivery & serviceability:',
       });
     }
 
@@ -492,10 +557,6 @@ exports.checkPincode = async (req, res) => {
       console.warn('[checkPincode] Live 8081 query skipped:', err.message);
     }
 
-    const locationPrefix = savedLocationInfo
-      ? `📍 Found your saved address in ${savedLocationInfo}!\n\n`
-      : '';
-
     if (liveData && liveData.isServiceable) {
       const estDays = liveData.estimatedDays ? `${liveData.estimatedDays} business days` : '3–5 business days';
       const charges = liveData.deliveryCharges ? Math.round(liveData.deliveryCharges) : 49;
@@ -504,19 +565,17 @@ exports.checkPincode = async (req, res) => {
         success: true,
         isServiceable: true,
         pincode: cleanPin,
-        savedAddressUsed: Boolean(savedLocationInfo),
         estimatedDays: estDays,
         deliveryCharge: charges,
         freeShippingAbove: freeShippingMin,
-        text: `${locationPrefix}✓ Delivery is active & available to PIN ${cleanPin}!\n\n• Estimated Timeline: ${estDays} across India\n• Free Shipping: Free on orders above ₹${freeShippingMin} (or ₹${charges} standard delivery fee).`,
+        text: `✓ Delivery is active & available to PIN ${cleanPin}!\n\n• Estimated Timeline: ${estDays}\n• Free Shipping: Available on all orders above ₹${freeShippingMin} (standard delivery fee ₹${charges} for lower amounts)\n• Cash on Delivery (COD): Supported for serviceable addresses.\n\nYou can enter this destination PIN code at checkout to complete your order.`,
       });
     } else if (liveData && liveData.isServiceable === false) {
       return res.status(200).json({
         success: true,
         isServiceable: false,
         pincode: cleanPin,
-        savedAddressUsed: Boolean(savedLocationInfo),
-        text: `${locationPrefix}Currently, PIN code ${cleanPin} is not directly serviceable. Please contact support to check for alternative delivery options.`,
+        text: `Currently, PIN code ${cleanPin} is not directly serviceable for standard delivery.\n\nIf this is your destination address, please contact our support team at support.fabuniqo@gmail.com to check for alternate delivery options.`,
       });
     }
 
@@ -526,18 +585,15 @@ exports.checkPincode = async (req, res) => {
         success: true,
         isServiceable: true,
         pincode: cleanPin,
-        savedAddressUsed: Boolean(savedLocationInfo),
         estimatedDays: '4–7 business days',
         freeShippingAbove: freeShippingMin,
-        text: `${locationPrefix}✓ Delivery is active for PIN ${cleanPin} across India.\n\n• Estimated Delivery: 4 to 7 business days\n• Free Shipping: Available on all orders above ₹${freeShippingMin}.`,
+        text: `✓ Delivery is active for PIN ${cleanPin} across India.\n\n• Estimated Delivery: 4 to 7 business days\n• Free Shipping: Available on all orders above ₹${freeShippingMin}.\n\nYou can enter this destination PIN code at checkout.`,
       });
     }
 
     return res.status(200).json({
-      success: true,
-      isServiceable: false,
-      pincode: cleanPin,
-      text: `PIN code ${cleanPin} appears to be invalid. Please enter a valid 6-digit postal code.`,
+      success: false,
+      text: `PIN code ${cleanPin} is invalid. Please enter a valid 6-digit Indian PIN code.`,
     });
   } catch (err) {
     console.error('[checkPincode Error]:', err);
@@ -580,7 +636,8 @@ exports.checkReturnRefundStatus = async (req, res) => {
           msg += `• Refund Status: N/A (Order is active and not marked for refund).\n`;
         }
 
-        msg += `\nNeed to initiate a return or exchange? You can request it under Account > Orders, or message support below.`;
+        msg += `• Return Policy: Returns are accepted strictly within 24 hours of delivery with mandatory uncut unboxing video (Damaged or Wrong item only).\n`;
+        msg += `\n👉 View all details or submit a return on your Profile Orders page:\n[📦 View All Orders in Profile](/account/orders)`;
 
         return res.status(200).json({
           success: true,
@@ -588,6 +645,8 @@ exports.checkReturnRefundStatus = async (req, res) => {
           orderId: order.orderId,
           hasReturn,
           isRefunded,
+          redirectUrl: '/account/orders',
+          redirectLabel: 'View All Orders in Profile',
           text: msg,
         });
       } else {
@@ -662,14 +721,24 @@ exports.checkReturnRefundStatus = async (req, res) => {
           msg += `• Refund Status: N/A (Order is active)\n`;
         }
 
-        msg += `\n• Return Eligibility: Returns & exchanges are accepted within 7 days of delivery.`;
+        msg += `• Return Policy: Return requests must be raised within 24 hours of delivery with mandatory unboxing video (Damaged or Wrong item only; exchanges are not supported).\n`;
+
+        if (recentOrders.length > 1) {
+          msg += `\n📦 Other Orders: You have ${recentOrders.length} orders on your account. To check individual statuses or raise a return request for any order, visit your Profile Orders page:\n`;
+        } else {
+          msg += `\n👉 To view full order details, download invoices, or submit a return request, visit your Profile Orders page:\n`;
+        }
+        msg += `[📦 View All Orders in Profile](/account/orders)`;
 
         return res.status(200).json({
           success: true,
           found: true,
           orderId: target.orderId,
+          orderCount: recentOrders.length,
           hasReturn,
           isRefunded,
+          redirectUrl: '/account/orders',
+          redirectLabel: 'View All Orders in Profile',
           text: msg,
         });
       }
@@ -680,7 +749,9 @@ exports.checkReturnRefundStatus = async (req, res) => {
       success: true,
       found: false,
       needsInput: true,
-      text: 'Please enter your Order ID (e.g. #1024 or FAB-ECOMM-...) to check your live return and refund status from the database:',
+      redirectUrl: '/account/orders',
+      redirectLabel: 'Go to My Orders',
+      text: 'Please enter your Order ID (e.g. #1024 or FAB-ECOMM-...) to check your live return and refund status from the database, or view all your orders on your Profile Orders page:\n[📦 Go to My Orders](/account/orders)',
     });
   } catch (err) {
     console.error('[checkReturnRefundStatus Error]:', err);
@@ -720,7 +791,7 @@ exports.getExchangeInquiry = async (req, res) => {
       }
     }
 
-    const text = `${orderInfo}✓ Yes, we gladly offer Exchanges for a different size, fit, or design!\n\n• Window: Exchanges can be requested within 7 days of delivery.\n• Condition: Items must be in their original unused condition with all jewelry tags, boxes, and invoice intact.\n• Process:\n  1. Let us know the new size or replacement design you'd like.\n  2. Our team arranges a doorstep reverse pickup for the current piece.\n  3. Your new replacement piece is dispatched as soon as the item is inspected!\n\n💬 How to proceed: You can reply right here with your requested replacement or reach our concierge directly on WhatsApp at 8527054683.`;
+    const text = `${orderInfo}📋 Exchange Policy Notice:\n\nDirect exchanges for a different size, fit, or design are not supported per store policy.\n\n• Eligible Returns: We only accept return requests if you received a Damaged item or Wrong product delivered.\n• Reporting Window: The return request must be raised within 24 hours of delivery from your Account > Orders page.\n• Mandatory Proofs: A continuous, uncut unboxing video (up to 60MB) and 1 to 3 clear photos of the issue.\n• Need a Different Piece? You can place a fresh order on our store for the desired item or design.\n\nFor questions, reach out to our team at support.fabuniqo@gmail.com.`;
 
     return res.status(200).json({
       success: true,
@@ -808,7 +879,7 @@ exports.getEmiInfo = async (req, res) => {
 // POST /api/chatbot/payment-safety-info - Explain encryption & gateway security
 exports.getPaymentSafetyInfo = async (req, res) => {
   try {
-    const text = `🔒 Is Online Payment Safe & Secure?\n\n100% Safe, Secure & Encrypted! We take customer privacy and transaction safety very seriously:\n\n• 256-Bit SSL Encryption: All checkout sessions are protected with military-grade SSL encryption directly from your browser to the payment server.\n• RBI-Authorized Gateway: Transactions are processed through an RBI-regulated payment gateway (Razorpay) adhering to strict PCI-DSS Level 1 compliance.\n• Zero Card Credential Storage: We NEVER store your CVV numbers, card PINs, or net banking passwords on our servers.\n• Safe UPI Payments: All UPI transactions (Google Pay, PhonePe, Paytm, BHIM) are authorized directly in your bank's official UPI app with your private UPI PIN.\n• Instant Digital Confirmation: You receive real-time SMS and email payment verification with a unique Order ID immediately after purchase.`;
+    const text = `🔒 Is Online Payment Safe & Secure?\n\nYes, 100% safe and secure! Your payments and personal details are always protected:\n\n• Bank-Grade Security: All payments are processed through government-authorized, secure bank servers with full encryption.\n• Card Details Are Never Saved: We never store your card numbers, CVV, ATM PINs, or banking passwords.\n• Safe UPI Payments: When paying with Google Pay, PhonePe, or Paytm, you approve the payment directly inside your trusted UPI app using your private UPI PIN.\n• Instant Confirmation: You receive an instant SMS and email with your confirmed Order ID as soon as your payment succeeds.\n• Cash on Delivery (COD) Option: Prefer paying at your doorstep? You can also choose Cash on Delivery at checkout!`;
 
     return res.status(200).json({ success: true, text });
   } catch (err) {
@@ -1016,7 +1087,7 @@ exports.browseCategories = async (req, res) => {
 // POST /api/chatbot/jewelry-care - Material & Anti-Tarnish guidelines checked from DB
 exports.getJewelryCareInfo = async (req, res) => {
   try {
-    const text = `✨ Jewelry Care: Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
+    const text = `Will it Tarnish or Fade?\n\n• Anti-Tarnish Protection: Our pieces are crafted with premium skin-safe alloys and sealed with advanced protective anti-tarnish micro-plating to retain their showroom luster.\n• Daily Wear Longevity: With standard care, your jewelry does not tarnish or fade easily and maintains its brilliance.\n• 4 Essential Care Tips:\n  1. Avoid Moisture: Keep jewelry away from water, swimming pools, showers, and excessive sweat.\n  2. Perfumes & Lotions First: Apply perfumes, deodorants, and body lotions before wearing jewelry (alcohol in perfumes can wear off electroplating).\n  3. Individual Storage: Store each piece separately in an airtight ziplock pouch or velvet box to prevent oxidation and scratches.\n  4. Post-Wear Wipe: Gently clean your jewelry with a soft, dry microfiber cloth after each wear before storing.\n\nTip: Every order is packaged in protective anti-moisture zip wraps to preserve its brand-new showroom shine during transit!`;
 
     return res.status(200).json({ success: true, type: 'FAQ_ANSWER', text });
   } catch (err) {
@@ -1035,7 +1106,7 @@ exports.getGiftPackagingInfo = async (req, res) => {
       freeGiftText = `• Active Store Perk: "${freeGift.name}" is currently active on purchases!\n`;
     }
 
-    const text = `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk on WhatsApp at 8527054683 with your Order ID!`;
+    const text = `🎁 Luxury Gift Packaging & Personalized Message Cards:\n\nPlanning a special surprise? We ensure an exquisite unboxing experience for your loved ones:\n\n• Signature Rigid Gift Box: Every jewelry piece is nestled securely inside our signature luxury gift box with plush velvet cushioning.\n• Complimentary Handwritten Note: We provide a personalized gift card free of charge! Simply enter your gift message at checkout, or message us immediately after ordering.\n• Discreet Courier Packaging: All parcels are shipped in tamper-evident, unbranded outer courier boxes to keep your surprise 100% secret until opened.\n• Concealed Price Tags: Gifting directly to a loved one? Let us know and we will remove price tags from the presentation box.\n${freeGiftText}\n💬 To personalize your gift card: Message our gifting desk via email at support.fabuniqo@gmail.com with your Order ID!`;
 
     return res.status(200).json({ success: true, type: 'FAQ_ANSWER', text });
   } catch (err) {
@@ -1047,7 +1118,7 @@ exports.getGiftPackagingInfo = async (req, res) => {
 // POST /api/chatbot/hypoallergenic-info - Hypoallergenic & skin-friendly standards checked from DB
 exports.getHypoallergenicInfo = async (req, res) => {
   try {
-    const text = `🌿 Is It Skin-Friendly & Hypoallergenic?\n\n100% Skin-Friendly, Lead-Free & Nickel-Free!\n\n• Nickel & Lead Free: All our jewelry strictly adheres to safe metal standards, free from harsh nickel, lead, and toxic heavy metals that trigger allergic reactions.\n• No Itching or Green Marks: The skin-contact surface is sealed with biocompatible protective electroplating that prevents oxidation reactions against body sweat, keeping your skin clean and free of green or dark marks.\n• Earring Comfort: Our earrings and studs feature smooth, skin-safe posts and hypoallergenic silicone or metal stoppers to prevent earlobe irritation or swelling.\n• Lightweight Ergonomics: Engineered to be lightweight and comfortable for all-day wear at weddings, festive occasions, or daily office wear.\n\nTip: If you have an ultra-sensitive skin condition or specific metal allergy, feel free to consult our support concierge on WhatsApp at 8527054683 before purchasing!`;
+    const text = `🌿 Is It Skin-Friendly & Hypoallergenic?\n\n100% Skin-Friendly, Lead-Free & Nickel-Free!\n\n• Nickel & Lead Free: All our jewelry strictly adheres to safe metal standards, free from harsh nickel, lead, and toxic heavy metals that trigger allergic reactions.\n• No Itching or Green Marks: The skin-contact surface is sealed with biocompatible protective electroplating that prevents oxidation reactions against body sweat, keeping your skin clean and free of green or dark marks.\n• Earring Comfort: Our earrings and studs feature smooth, skin-safe posts and hypoallergenic silicone or metal stoppers to prevent earlobe irritation or swelling.\n• Lightweight Ergonomics: Engineered to be lightweight and comfortable for all-day wear at weddings, festive occasions, or daily office wear.\n\nTip: If you have an ultra-sensitive skin condition or specific metal allergy, feel free to consult our support concierge via email at support.fabuniqo@gmail.com before purchasing!`;
 
     return res.status(200).json({ success: true, type: 'FAQ_ANSWER', text });
   } catch (err) {
@@ -1220,13 +1291,68 @@ exports.handleGeneralQuery = async (req, res) => {
     // Escape regex characters for safe MongoDB searches
     const safeRegex = clean.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 
+    // ── TIER 0A: ORDER CANCELLATION & CHANGE INTENT (e.g. "how to cancel or change my order", "cancel order", "change address", "modify order") ──
+    const hasCancelChangeWords = /\b(cancel|cancellation|cancelling|change\s*(?:my\s*)?order|modify\s*(?:my\s*)?order|stop\s*(?:my\s*)?order|change\s*(?:delivery\s*|shipping\s*)?address|update\s*(?:delivery\s*|shipping\s*)?address|change\s*phone|wrong\s*address)\b/i.test(clean);
+    if (hasCancelChangeWords) {
+      const cancelFaq = await ChatFaq.findOne({ questionId: 'cancel_order', isActive: true }).lean();
+      const cancelText =
+        cancelFaq?.answerText ||
+        `❌ How to Cancel or Change Your Order:\n\n1. Before Dispatch (Cancellations & Changes):\n• How to Cancel: Direct self-service cancellation is not available on the website. To request cancellation before dispatch:\n  - Within 24 hours: Go to Account > Orders, open your order, and submit a request using the 24-hour "Request Return / Refund" window, OR\n  - Contact Support: Reach out via email at support.fabuniqo@gmail.com with your Order ID for immediate cancellation.\n• How to Change Details: To update your shipping address, phone number, or modify ordered items, contact customer support immediately before your parcel is packed and handed over to the courier.\n• Prepaid Refunds: 100% of your paid amount will be refunded to your original payment method (UPI / Cards / NetBanking) within 5–7 business days.\n\n2. After Dispatch (In-Transit Orders):\n• Cannot Be Cancelled: Once your order is dispatched from our warehouse and handed over to the courier partner, it cannot be modified or cancelled in-transit.\n• Refusing Delivery (RTO Notice): If delivery is refused at your doorstep, the parcel returns as RTO. Per our policy:\n  - For Partial Prepaid (Advance + COD) orders, the advance payment is non-refundable to cover forward shipping and RTO reverse courier charges.\n  - For 100% Prepaid orders, return courier & forward shipping costs are deducted from the refund once verified at our warehouse.\n\n3. After Delivery:\n• If you receive a damaged or wrong item, you can raise a return request with a continuous unboxing video within 24 hours of delivery from your Account > Orders section.`;
+
+      return res.status(200).json({
+        success: true,
+        type: 'FAQ_ANSWER',
+        text: cancelText,
+        faq: {
+          questionId: 'cancel_order',
+          question: '❌ How to cancel or change my order',
+          actionType: 'STATIC_TEXT',
+        },
+      });
+    }
+
+    // ── TIER 0AA: ORDER MARKED DELIVERED BUT NOT RECEIVED DISPUTE INTENT ──
+    const hasDeliveredDisputeWords = /\b(marked\s*delivered|delivered\s*but\s*not\s*received|not\s*received\s*(?:my\s*)?(?:order|package|item|parcel)|haven'?t\s*received|fake\s*delivery|package\s*not\s*delivered|item\s*not\s*delivered)\b/i.test(clean);
+    if (hasDeliveredDisputeWords) {
+      const orderIdMatch = clean.match(/(?:[A-Za-z0-9]+[-_])*\d{4,12}/i);
+      if (orderIdMatch) {
+        req.body.orderId = orderIdMatch[0];
+        return exports.checkDeliveryDispute(req, res);
+      }
+      return res.status(200).json({
+        success: true,
+        type: 'DELIVERY_DISPUTE_PROMPT',
+        text: 'Please enter your Order ID (e.g. #FAB-ECOMM-187286) so we can verify the delivery status in our database and escalate with the courier:',
+      });
+    }
+
+    // ── TIER 0-PIN: STANDALONE PIN CODE OR PIN CODE SERVICEABILITY QUERY ──
+    const pinMatch = clean.match(/\b([1-9]\d{5})\b/);
+    const hasPinWords = /\b(pincode|pin\s*code|pin|deliver|serviceable|serviceability|coverage|delivery\s*to)\b/i.test(clean);
+    if (pinMatch && (hasPinWords || /^[1-9]\d{5}$/.test(clean.trim()))) {
+      req.body.pincode = pinMatch[1];
+      return exports.checkPincode(req, res);
+    }
+    if (!pinMatch && hasPinWords && /\b(check|enter|my\s*pincode|my\s*pin|delivery\s*to|available|service)\b/i.test(clean)) {
+      return res.status(200).json({
+        success: true,
+        type: 'PINCODE_PROMPT',
+        text: 'Please enter the 6-digit destination PIN code (e.g. 110001, 400050, 560001) in the message box below to check live courier delivery & serviceability:',
+      });
+    }
+
     // ── TIER 0: ORDER TRACKING INTENT & ORDER ID DETECTION ──
     const cleanWithoutPunct = clean.replace(/[#\s]/g, '');
     const isExplicitOrderId =
-      /^(?:FAB|ECOMM|ORD|ORDER)[-_]?\w+/i.test(cleanWithoutPunct) ||
-      /^\d{4,12}$/.test(cleanWithoutPunct);
+      !hasCancelChangeWords &&
+      !hasDeliveredDisputeWords &&
+      (/^(?:FAB|ECOMM|ORD|ORDER)[-_]?\w+/i.test(cleanWithoutPunct) ||
+       /^#\d{3,12}$/.test(clean.trim()) ||
+       (/^\d{4,12}$/.test(cleanWithoutPunct) && !/^[1-9]\d{5}$/.test(cleanWithoutPunct)));
     const hasOrderTrackingWords =
-      /\b(track|tracking|order|status|where\s*is\s*my\s*order|package|delivery\s*status)\b/i.test(clean);
+      !hasCancelChangeWords &&
+      !hasDeliveredDisputeWords &&
+      /\b(track|tracking|where\s*is\s*my\s*order|order\s*status|delivery\s*status|check\s*my\s*order|package\s*status)\b/i.test(clean);
     const orderIdMatch = clean.match(/(?:[A-Za-z0-9]+[-_])*\d{4,12}/i);
 
     if (isExplicitOrderId || (hasOrderTrackingWords && orderIdMatch)) {
@@ -1254,14 +1380,6 @@ exports.handleGeneralQuery = async (req, res) => {
         type: 'ORDER_PROMPT',
         text: 'To track your order, please type your Order ID (e.g. #1024 or FAB-ECOMM-...) or registered phone number:',
       });
-    }
-
-    // ── TIER 0B: PIN CODE SERVICEABILITY QUERY (e.g. "is 110001 serviceable?", "pincode 400001", "delivery to 560001") ──
-    const pinMatch = clean.match(/\b([1-9]\d{5})\b/);
-    const hasPinWords = /\b(pincode|pin\s*code|pin|deliver|serviceable|serviceability|coverage|delivery\s*to)\b/i.test(clean);
-    if (pinMatch && (hasPinWords || clean.length <= 10)) {
-      req.body.pincode = pinMatch[1];
-      return exports.checkPincode(req, res);
     }
 
     // ── TIER 0C: RETURN & REFUND STATUS QUERY ──
@@ -1331,10 +1449,14 @@ exports.handleGeneralQuery = async (req, res) => {
     }
 
     // ── TIER 0N: BROWSE BY CATEGORY QUERY ──
-    const hasCategoryWords = /\b(browse\s*(?:by\s*)?categor(?:y|ies)|show\s*categor(?:y|ies)|all\s*categor(?:y|ies)|explore\s*categor(?:y|ies)|categories|collections?|jhumkas?|mangalsutras?|earrings?|necklaces?|rings?|bangles?|pendants?)\b/i.test(clean);
+    const hasCategoryWords = /\b(browse\s*(?:by\s*)?categor(?:y|ies)|show\s*categor(?:y|ies)|all\s*categor(?:y|ies)|explore\s*categor(?:y|ies)|categories|collections?|jhumkas?|mangalsutras?|earrings?|necklaces?|rings?|bangles?|pendants?|hair|forehead|chains?)\b/i.test(clean);
     if (hasCategoryWords && !/\b(price|under|below|rs|₹|cost|cheap|luxury)\b/i.test(clean)) {
       if (/\b(earrings?|jhumkas?|studs?)\b/i.test(clean)) {
         req.body.category = 'Earrings & Studs';
+      } else if (/\b(hair|forehead)\b/i.test(clean)) {
+        req.body.category = 'Hair & Forehead Jewelry';
+      } else if (/\b(chains?\b|chains?\s*and\s*pendants?)\b/i.test(clean)) {
+        req.body.category = 'Chains & Pendants';
       } else if (/\b(rings?)\b/i.test(clean)) {
         req.body.category = 'rings';
       } else if (/\b(necklace\s*sets?)\b/i.test(clean)) {
@@ -1471,7 +1593,8 @@ exports.handleGeneralQuery = async (req, res) => {
         'what', 'when', 'where', 'which', 'with', 'about', 'your', 'have', 'from',
         'this', 'that', 'please', 'does', 'tell', 'want', 'need', 'show', 'give',
         'product', 'items', 'the', 'how', 'can', 'are', 'you', 'for', 'all',
-        'any', 'some', 'why', 'who', 'and', 'our', 'out', 'get', 'today', 'paris', 'weather'
+        'any', 'some', 'why', 'who', 'and', 'our', 'out', 'get', 'today', 'paris', 'weather',
+        'jewelry', 'jewellery'
       ]);
       const meaningfulTokens = clean
         .toLowerCase()
@@ -1614,7 +1737,8 @@ exports.handleGeneralQuery = async (req, res) => {
       'what', 'when', 'where', 'which', 'with', 'about', 'your', 'have', 'from',
       'this', 'that', 'please', 'does', 'tell', 'want', 'need', 'show', 'give',
       'product', 'items', 'the', 'how', 'can', 'are', 'you', 'for', 'all',
-      'any', 'some', 'why', 'who', 'and', 'our', 'out', 'get', 'today', 'paris', 'weather'
+      'any', 'some', 'why', 'who', 'and', 'our', 'out', 'get', 'today', 'paris', 'weather',
+      'jewelry', 'jewellery'
     ]);
     const meaningfulTokens = clean
       .toLowerCase()
@@ -1691,12 +1815,10 @@ exports.handleGeneralQuery = async (req, res) => {
       return res.status(200).json({
         success: true,
         type: 'SUPPORT_PROMPT',
-        text: 'Our concierge team is available to assist you! You can connect with us directly or leave a message below:',
+        text: 'Our customer support team is available to assist you! You can email us directly or leave a message below:',
         contactCard: {
-          phone: process.env.STORE_PHONE || '8527054683',
-          whatsapp: process.env.STORE_WHATSAPP || '8527054683',
           email: process.env.STORE_EMAIL || 'support.fabuniqo@gmail.com',
-          hours: process.env.SUPPORT_HOURS || '10:00 AM - 7:00 PM IST',
+          hours: process.env.SUPPORT_HOURS || '10:00 AM - 7:00 PM IST (Mon-Sat)',
         },
       });
     }

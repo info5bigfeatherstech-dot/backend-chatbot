@@ -31,7 +31,20 @@ const initialFaqs = [
     questionId: 'cancel_order',
     question: '❌ How to cancel or change my order',
     actionType: 'STATIC_TEXT',
-    answerText: 'You can cancel an order before it has been dispatched from your Account > Orders section. Once the order has been dispatched from our warehouse, it cannot be cancelled in-transit; you may refuse delivery at your doorstep as per our Order Cancellation Policy.',
+    answerText:
+      '❌ How to Cancel or Change Your Order:\n\n1. Before Dispatch (Cancellations & Changes):\n• How to Cancel: Direct self-service cancellation is not available on the website. To request cancellation before dispatch:\n  - Within 24 hours: Go to Account > Orders, open your order, and submit a request using the 24-hour "Request Return / Refund" window, OR\n  - Contact Support: Reach out via email at support.fabuniqo@gmail.com with your Order ID for immediate cancellation.\n• How to Change Details: To update your shipping address, phone number, or modify ordered items, contact customer support immediately before your parcel is packed and handed over to the courier.\n• Prepaid Refunds: 100% of your paid amount will be refunded to your original payment method (UPI / Cards / NetBanking) within 5–7 business days.\n\n2. After Dispatch (In-Transit Orders):\n• Cannot Be Cancelled: Once your order is dispatched from our warehouse and handed over to the courier partner, it cannot be modified or cancelled in-transit.\n• Refusing Delivery (RTO Notice): If delivery is refused at your doorstep, the parcel returns as RTO. Per our policy:\n  - For Partial Prepaid (Advance + COD) orders, the advance payment is non-refundable to cover forward shipping and RTO reverse courier charges.\n  - For 100% Prepaid orders, return courier & forward shipping costs are deducted from the refund once verified at our warehouse.\n\n3. After Delivery:\n• If you receive a damaged or wrong item, you can raise a return request with a continuous unboxing video within 24 hours of delivery from your Account > Orders section.',
+    keywords: [
+      'cancel',
+      'cancellation',
+      'cancel order',
+      'change order',
+      'modify order',
+      'change address',
+      'cancel item',
+      'how to cancel',
+      'stop order',
+      'change my order',
+    ],
     sortOrder: 3,
   },
   {
@@ -40,8 +53,18 @@ const initialFaqs = [
     categoryIcon: '📦',
     questionId: 'delivered_not_received',
     question: '⚠️ Order marked delivered but not received',
-    actionType: 'STATIC_TEXT',
-    answerText: 'Sometimes couriers mark packages delivered slightly before doorstep handover, or a family member/building security received it. If you cannot locate it within 4 hours, please contact our support team at support.fabuniqo@gmail.com with your Order ID for prompt courier escalation.',
+    actionType: 'DELIVERY_DISPUTE_PROMPT',
+    answerText:
+      'Please enter your Order ID (e.g. #FAB-ECOMM-187286) below so we can check the delivery status in our database and escalate with the courier:',
+    keywords: [
+      'delivered but not received',
+      'marked delivered',
+      'not received',
+      'haven\'t received',
+      'fake delivery',
+      'order not received',
+      'package not delivered',
+    ],
     sortOrder: 4,
   },
 
@@ -75,16 +98,6 @@ const initialFaqs = [
     actionType: 'EXPENSIVE_PRODUCTS',
     answerText: 'Here are our most exclusive, high-end luxury pieces:',
     sortOrder: 3,
-  },
-  {
-    categoryKey: 'products',
-    categoryTitle: 'Products & Catalog',
-    categoryIcon: '🛍️',
-    questionId: 'product_authenticity',
-    question: '✨ Product quality & authenticity',
-    actionType: 'STATIC_TEXT',
-    answerText: 'Every piece at FABUNIQO is crafted with premium quality standards, rigorous quality inspection, and authentic materials before shipment.',
-    sortOrder: 4,
   },
   {
     categoryKey: 'products',
@@ -125,7 +138,8 @@ const initialFaqs = [
     questionId: 'request_return',
     question: '🔄 How do I initiate a return?',
     actionType: 'STATIC_TEXT',
-    answerText: 'Go to your Account > Orders page, select the order you wish to return, click "Request Return", and choose your reason (damaged or wrong item). Upload your unboxing video and photo proofs. Our team will review and schedule a reverse pickup upon approval.',
+    answerText:
+      '📋 How to Initiate a Return on FABUNIQO:\n\n1. Go to Your Orders:\n• Navigate to Account > Orders and open your delivered order.\n\n2. Click "Raise Return Request":\n• The "Raise Return Request" button appears on delivered orders strictly within 24 hours of delivery.\n\n3. Complete the Return Form (Mandatory Proofs):\n• Eligible Reasons: Choose either "Damaged Item Received" or "Wrong Item Delivered" (change of mind is not accepted per store policy).\n• Unboxing Video (Mandatory): Upload a continuous, uncut unboxing video (up to 60MB) starting from the sealed outer package to showing the issue.\n• Proof Photos: Attach 1 to 3 clear photos of the issue.\n• Describe the Issue: Enter a short description (up to 500 characters).\n\n4. Review & Doorstep Pickup:\n• Once submitted, a dedicated Return Support Chat opens directly on your order details page.\n• Our verification team reviews your unboxing video and photos.\n• Upon approval, a reverse pickup AWB is generated and our courier partner will collect the parcel from your doorstep.\n\n5. Refund Processing:\n• Once the returned parcel reaches our warehouse and passes physical inspection, your refund is credited:\n  - Prepaid Orders: Refunded to your original payment method (bank/card/UPI) within 5–10 business days.\n  - Cash on Delivery (COD): Refunded via support-assisted UPI or Bank Transfer.\n\n⚠️ Important Window: Return requests must be submitted within 24 hours of delivery. After 24 hours, the return window closes. For urgent assistance, reach our support team via email at support.fabuniqo@gmail.com.',
     sortOrder: 2,
   },
   {
@@ -157,7 +171,7 @@ const initialFaqs = [
     questionId: 'payment_methods',
     question: '💳 Accepted payment methods',
     actionType: 'STATIC_TEXT',
-    answerText: 'We accept:\n• Online Payment: UPI (Google Pay, PhonePe, Paytm), Credit & Debit Cards (Visa, Mastercard, RuPay), and Net Banking via secure Razorpay checkout.\n• Cash on Delivery (COD): Available across serviceable PIN codes.\n• Partial Advance + COD: Select orders support paying a partial online advance with the remaining balance due on delivery.',
+    answerText: 'We accept:\n• Online Payment: UPI (Google Pay, PhonePe, Paytm), Credit & Debit Cards (Visa, Mastercard, RuPay), and Net Banking via secure online checkout.\n• Cash on Delivery (COD): Available across serviceable PIN codes.\n• Partial Advance + COD: Select orders support paying a partial online advance with the remaining balance due on delivery.',
     sortOrder: 1,
   },
   {
@@ -197,9 +211,9 @@ const initialFaqs = [
     categoryTitle: 'Contact Support',
     categoryIcon: '📞',
     questionId: 'contact_details',
-    question: '📞 Official Phone & WhatsApp Support',
+    question: '✉ Official Customer Support (Email)',
     actionType: 'CONTACT_CARD',
-    answerText: 'You can reach our customer support team directly via WhatsApp or Phone.',
+    answerText: 'You can reach our customer support team directly via email at support.fabuniqo@gmail.com.',
     sortOrder: 1,
   },
   {
