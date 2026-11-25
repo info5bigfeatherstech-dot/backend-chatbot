@@ -257,9 +257,47 @@ async function formatOrderResponse(order) {
   const amountPaid = order.amountPaidInr ?? 0;
   const refunded = order.refundHistory?.reduce((acc, r) => acc + (r.amountInr || 0), 0) ?? 0;
 
+  const ret = order.returnInfo || {};
+  const refunds = Array.isArray(order.refundHistory) ? order.refundHistory : [];
+  const isRefunded =
+    order.paymentStatus === 'refunded' ||
+    order.paymentStatus === 'partially_refunded' ||
+    refunds.length > 0 ||
+    refunded > 0 ||
+    ret.status === 'refunded';
+
+  const hasReturn = Boolean(
+    ret.reasonType ||
+    ret.approvedBy ||
+    ret.rtoStatus ||
+    order.orderStatus === 'return_requested' ||
+    order.orderStatus === 'returned' ||
+    order.status === 'return_requested' ||
+    order.status === 'returned' ||
+    ret.status === 'requested' ||
+    ret.status === 'in_transit' ||
+    ret.status === 'approved' ||
+    ret.status === 'pending_inspection' ||
+    ret.status === 'inspection_passed'
+  );
+
+  const refundPending = Boolean(
+    ret.status === 'refund_pending' ||
+    ret.status === 'refund_failed' ||
+    (hasReturn && !isRefunded)
+  );
+
+  const refundAmount =
+    ret.refundAmount ||
+    ret.rtoRefundAmount ||
+    refunds[0]?.amountInr ||
+    refunds[0]?.amount ||
+    (isRefunded ? totalAmount : 0);
+
   return {
     orderId: order.orderId,
-    status: order.orderStatus || 'Processing',
+    status: order.orderStatus || order.status || 'Processing',
+    orderStatus: order.orderStatus || order.status || 'Processing',
     paymentStatus: order.paymentStatus || 'Pending',
     paymentMethod,
     itemsCount: (order.items && order.items.length) || 1,
@@ -277,6 +315,16 @@ async function formatOrderResponse(order) {
     trackingUrl,
     estimatedDelivery,
     customerCity: city,
+    returnInfo: ret,
+    refundHistory: refunds,
+    hasReturn,
+    isRefunded,
+    refundPending,
+    refundAmount,
+    returnStatus: ret.status || (hasReturn ? 'requested' : (isRefunded ? 'refunded' : null)),
+    returnReason: ret.reasonType || null,
+    reverseTrackingNumber: ret.reverseTrackingNumber || ret.reverseAwbCode || null,
+    reverseCourier: ret.reverseCourier || null,
   };
 }
 
@@ -671,55 +719,67 @@ exports.checkReturnRefundStatus = async (req, res) => {
       if (order) {
         const ret = order.returnInfo || {};
         const refunds = Array.isArray(order.refundHistory) ? order.refundHistory : [];
-        const isRefunded = order.paymentStatus === 'refunded' || refunds.length > 0 || (order.refunded && order.refunded > 0);
-        const hasReturn = Boolean(ret.reasonType || ret.approvedBy || ret.rtoStatus || order.status === 'return_requested' || order.status === 'returned');
+        const isRefunded = order.isRefunded || order.paymentStatus === 'refunded' || refunds.length > 0 || (order.refunded && order.refunded > 0);
+        const hasReturn = order.hasReturn || Boolean(ret.reasonType || ret.approvedBy || ret.rtoStatus || order.status === 'return_requested' || order.status === 'returned');
+        const refundPending = order.refundPending || Boolean(ret.status === 'refund_pending' || (hasReturn && !isRefunded));
+        const isCancelled = String(order.status || '').toLowerCase() === 'cancelled' || String(order.orderStatus || '').toLowerCase() === 'cancelled';
 
         let msg = '';
         if (isHi) {
-          msg = `📍 Order #${order.orderId} ka Return & Refund Status:\n\n`;
+          msg = `📍 Order #${order.orderId} ka Live Return & Refund Status:\n\n`;
           if (hasReturn) {
             const returnStatusLabel = ret.approvedBy
               ? '✓ Approved (Reverse Pickup Progress me hai)'
-              : (ret.rtoStatus || 'Returns Team review kar rahi hai');
-            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
-            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+              : (ret.status === 'completed' || ret.status === 'refunded' ? '✓ Return Complete' : 'Returns Team review kar rahi hai');
+            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode ? 'Reverse courier assigned' : 'Courier assignment in progress';
+            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier: ${tracking}\n`;
+          } else if (isCancelled) {
+            msg += `• Order Status: Cancelled\n• Return Request: Order cancel hone ki wajah se return applicable nahi hai.\n`;
           } else {
-            msg += `• Return Status: Is order ke liye abhi tak koi return request darj nahi hui hai.\n• Current Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
+            msg += `• Return Status: Is order ke liye abhi tak koi return request darj nahi hui hai.\n• Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
           }
 
           if (isRefunded) {
-            const refAmount = refunds[0]?.amount || order.refunded || order.totalAmount;
-            msg += `• Refund Status: ✓ Refund Complete (₹${refAmount})\n• Destination: Original payment source / bank account me credit ho gaya hai.\n`;
-          } else if (hasReturn) {
-            msg += `• Refund Status: Processing (Warehouse inspection ke 24–48 ghante me credit hoga).\n• Estimated Amount: ₹${order.totalAmount}\n`;
+            const refAmount = order.refundAmount || refunds[0]?.amount || order.refunded || order.totalAmount;
+            msg += `• Refund Status: ✓ Refund Complete (₹${refAmount})\n• Payment Method: ${order.paymentMethod || 'Online'}\n• Destination: Original source / bank account me credit ho chuka hai.\n`;
+          } else if (refundPending || hasReturn) {
+            const refAmount = order.refundAmount || order.totalAmount;
+            msg += `• Refund Status: ⏳ Processing (₹${refAmount})\n• Estimated Timeline: Warehouse quality inspection ke 24–48 ghante me initiate hoga.\n`;
+          } else if (isCancelled && (order.paymentStatus === 'paid' || order.paymentMethod === 'ONLINE')) {
+            msg += `• Refund Status: ⏳ Cancellation Refund In Progress (₹${order.totalAmount})\n• Estimated Timeline: 3–5 business days me original account me credit hoga.\n`;
           } else {
-            msg += `• Refund Status: N/A (Order active hai, refund apply nahi hota).\n`;
+            msg += `• Refund Status: N/A (Order active hai, refund initiate nahi hua hai).\n`;
           }
 
-          msg += `• Return Policy: Delivery ke 24 ghante ke andar continuous uncut unboxing video ke saath return request accept hoti hai (sirf damaged ya wrong item ke liye).\n`;
+          msg += `\n• Return Policy: Delivery ke 24 ghante ke andar continuous uncut unboxing video ke saath return request accept hoti hai (sirf damaged ya wrong item ke liye).\n`;
           msg += `\n👉 Full details dekhne ya return submit karne ke liye Profile Orders page par jayein:\n[📦 Apne Saare Orders Dekhein](/account/orders)`;
         } else {
           msg = `📍 Return & Refund Status for Order #${order.orderId}:\n\n`;
           if (hasReturn) {
             const returnStatusLabel = ret.approvedBy
               ? '✓ Approved (Reverse Pickup in Progress)'
-              : (ret.rtoStatus || 'Under Review by Returns Team');
-            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
-            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
+              : (ret.status === 'completed' || ret.status === 'refunded' ? '✓ Return Completed' : 'Under Review by Returns Team');
+            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode ? 'Reverse courier assigned' : 'Courier assignment in progress';
+            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier: ${tracking}\n`;
+          } else if (isCancelled) {
+            msg += `• Order Status: Cancelled\n• Return Request: Return not applicable for cancelled order.\n`;
           } else {
-            msg += `• Return Status: No return request has been submitted for this order yet.\n• Current Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
+            msg += `• Return Status: No return request has been submitted for this order yet.\n• Order Status: ${String(order.status || 'Processing').toUpperCase()}\n`;
           }
 
           if (isRefunded) {
-            const refAmount = refunds[0]?.amount || order.refunded || order.totalAmount;
-            msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
-          } else if (hasReturn) {
-            msg += `• Refund Status: Processing (Refund will be credited within 24–48 hours of warehouse inspection).\n• Estimated Amount: ₹${order.totalAmount}\n`;
+            const refAmount = order.refundAmount || refunds[0]?.amount || order.refunded || order.totalAmount;
+            msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Payment Method: ${order.paymentMethod || 'Online'}\n• Destination: Credited to original source / bank account.\n`;
+          } else if (refundPending || hasReturn) {
+            const refAmount = order.refundAmount || order.totalAmount;
+            msg += `• Refund Status: ⏳ Processing (₹${refAmount})\n• Estimated Timeline: Refund will be credited within 24–48 hours of warehouse inspection.\n`;
+          } else if (isCancelled && (order.paymentStatus === 'paid' || order.paymentMethod === 'ONLINE')) {
+            msg += `• Refund Status: ⏳ Cancellation Refund In Progress (₹${order.totalAmount})\n• Estimated Timeline: 3–5 business days to original payment method.\n`;
           } else {
             msg += `• Refund Status: N/A (Order is active and not marked for refund).\n`;
           }
 
-          msg += `• Return Policy: Returns are accepted strictly within 24 hours of delivery with mandatory uncut unboxing video (Damaged or Wrong item only).\n`;
+          msg += `\n• Return Policy: Returns are accepted strictly within 24 hours of delivery with mandatory uncut unboxing video (Damaged or Wrong item only).\n`;
           msg += `\n👉 View all details or submit a return on your Profile Orders page:\n[📦 View All Orders in Profile](/account/orders)`;
         }
 
@@ -727,8 +787,10 @@ exports.checkReturnRefundStatus = async (req, res) => {
           success: true,
           found: true,
           orderId: order.orderId,
+          order,
           hasReturn,
           isRefunded,
+          refundPending,
           redirectUrl: '/account/orders',
           redirectLabel: isHi ? 'Apne Saare Orders Dekhein' : 'View All Orders in Profile',
           text: msg,
@@ -744,7 +806,7 @@ exports.checkReturnRefundStatus = async (req, res) => {
       }
     }
 
-    // 2. If no specific Order ID entered, auto-query the DB for logged-in user's recent orders!
+    // 2. If no specific Order ID entered, fetch recent user orders and let user choose!
     const orConditions = [];
     const mongoose = require('mongoose');
 
@@ -755,109 +817,43 @@ exports.checkReturnRefundStatus = async (req, res) => {
       orConditions.push({ userId: String(userId) });
     }
     if (phone) {
-      const cleanPhone = String(phone).replace(/\D/g, '').slice(-10);
+      const cleanPhone = String(phone).replace(/[^\d]/g, '').slice(-10);
       if (cleanPhone.length >= 7) {
         orConditions.push({ 'customer.phone': cleanPhone });
         orConditions.push({ 'addressSnapshot.phone': cleanPhone });
         orConditions.push({ 'shippingAddress.phone': cleanPhone });
       }
     }
-    if (email && String(email).includes('@')) {
+    if (email && typeof email === 'string' && email.includes('@')) {
       orConditions.push({ 'customer.email': String(email).trim().toLowerCase() });
       orConditions.push({ 'addressSnapshot.email': String(email).trim().toLowerCase() });
     }
 
     if (orConditions.length > 0) {
-      const ordersCol = mongoose.connection.db.collection('orders');
-      const recentOrders = await ordersCol
-        .find({ $or: orConditions })
+      const orders = await Order.find({ $or: orConditions })
         .sort({ createdAt: -1 })
-        .limit(3)
-        .toArray();
+        .limit(6)
+        .lean();
 
-      if (recentOrders && recentOrders.length > 0) {
-        // Check if any order has an active return or refund
-        const returnOrder = recentOrders.find((o) =>
-          Boolean(o.returnInfo?.reasonType || o.returnInfo?.approvedBy || o.returnInfo?.rtoStatus || o.paymentStatus === 'refunded' || (o.refundHistory && o.refundHistory.length > 0))
-        );
+      if (orders && orders.length > 0) {
+        const formattedOrders = await Promise.all(orders.map(formatOrderResponse));
+        const validOrders = formattedOrders.filter(Boolean);
 
-        const target = returnOrder || recentOrders[0];
-        const ret = target.returnInfo || {};
-        const refunds = Array.isArray(target.refundHistory) ? target.refundHistory : [];
-        const isRefunded = target.paymentStatus === 'refunded' || refunds.length > 0;
-        const hasReturn = Boolean(ret.reasonType || ret.approvedBy || ret.rtoStatus);
-
-        let msg = '';
-        if (isHi) {
-          msg = `📍 Aapka recent order #${target.orderId} database me mil gaya hai:\n\n`;
-          if (hasReturn) {
-            const returnStatusLabel = ret.approvedBy
-              ? '✓ Approved (Reverse Pickup Progress me hai)'
-              : (ret.rtoStatus || 'Returns Team review kar rahi hai');
-            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
-            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
-          } else {
-            msg += `• Return Request: Is order ke liye koi active return request darj nahi hai.\n• Order Status: ${String(target.status || 'Processing').toUpperCase()}\n`;
-          }
-
-          if (isRefunded) {
-            const refAmount = refunds[0]?.amount || target.totalAmount;
-            msg += `• Refund Status: ✓ Refund Complete (₹${refAmount})\n• Destination: Original source / bank account me transfer ho gaya hai.\n`;
-          } else if (hasReturn) {
-            msg += `• Refund Status: Warehouse quality check chal raha hai (Inspection ke 24–48 ghante me initiate hoga).\n• Estimated Refund: ₹${target.totalAmount}\n`;
-          } else {
-            msg += `• Refund Status: N/A (Order active hai)\n`;
-          }
-
-          msg += `• Return Policy: Delivery ke 24 ghante ke andar continuous unboxing video ke saath return request raise kar sakte hain (sirf damaged ya wrong item hone par).\n`;
-
-          if (recentOrders.length > 1) {
-            msg += `\n📦 Other Orders: Aapke account me total ${recentOrders.length} orders hain. Individual status check karne ya return ke liye Profile Orders page par jayein:\n`;
-          } else {
-            msg += `\n👉 Full order details dekhne, invoice download karne ya return request ke liye Profile Orders page par jayein:\n`;
-          }
-          msg += `[📦 Apne Saare Orders Dekhein](/account/orders)`;
-        } else {
-          msg = `📍 Found your recent order #${target.orderId} in our database:\n\n`;
-          if (hasReturn) {
-            const returnStatusLabel = ret.approvedBy
-              ? '✓ Approved (Reverse Pickup in Progress)'
-              : (ret.rtoStatus || 'Under Review by Returns Team');
-            const tracking = ret.reverseTrackingNumber || ret.reverseAwbCode || 'Awaiting courier assignment';
-            msg += `• Return Request: ${ret.reasonType || 'Standard Return'}\n• Return Status: ${returnStatusLabel}\n• Reverse Courier Tracking: ${tracking}\n`;
-          } else {
-            msg += `• Return Request: No active return request recorded for this order.\n• Order Status: ${String(target.status || 'Processing').toUpperCase()}\n`;
-          }
-
-          if (isRefunded) {
-            const refAmount = refunds[0]?.amount || target.totalAmount;
-            msg += `• Refund Status: ✓ Refund Completed (₹${refAmount})\n• Destination: Credited to original source / bank account.\n`;
-          } else if (hasReturn) {
-            msg += `• Refund Status: Pending Warehouse Receipt & Quality Check (Refund initiated within 24–48 hours of inspection).\n• Estimated Refund: ₹${target.totalAmount}\n`;
-          } else {
-            msg += `• Refund Status: N/A (Order is active)\n`;
-          }
-
-          msg += `• Return Policy: Return requests must be raised within 24 hours of delivery with mandatory unboxing video (Damaged or Wrong item only; exchanges are not supported).\n`;
-
-          if (recentOrders.length > 1) {
-            msg += `\n📦 Other Orders: You have ${recentOrders.length} orders on your account. To check individual statuses or raise a return request for any order, visit your Profile Orders page:\n`;
-          } else {
-            msg += `\n👉 To view full order details, download invoices, or submit a return request, visit your Profile Orders page:\n`;
-          }
-          msg += `[📦 View All Orders in Profile](/account/orders)`;
-        }
+        // Sort: active refunds/returns first, then cancellations, then other orders
+        validOrders.sort((a, b) => {
+          const aScore = (a.isRefunded ? 4 : 0) + (a.refundPending ? 3 : 0) + (a.hasReturn ? 2 : 0) + (a.status === 'cancelled' ? 1 : 0);
+          const bScore = (b.isRefunded ? 4 : 0) + (b.refundPending ? 3 : 0) + (b.hasReturn ? 2 : 0) + (b.status === 'cancelled' ? 1 : 0);
+          return bScore - aScore;
+        });
 
         return res.status(200).json({
           success: true,
           found: true,
-          orderId: target.orderId,
-          orderCount: recentOrders.length,
-          hasReturn,
-          isRefunded,
-          redirectUrl: '/account/orders',
-          redirectLabel: isHi ? 'Apne Saare Orders Dekhein' : 'View All Orders in Profile',
-          text: msg,
+          mode: 'SELECT_ORDER',
+          orders: validOrders,
+          text: isHi
+            ? 'Aapke account ke orders neeche diye gaye hain. Kripya us order par click karein jiska return ya refund status check karna hai:'
+            : 'Here are the recent orders from your account. Please click an order card below to check its live return & refund status from our database:',
         });
       }
     }
@@ -866,12 +862,13 @@ exports.checkReturnRefundStatus = async (req, res) => {
     return res.status(200).json({
       success: true,
       found: false,
+      mode: 'INPUT_REQUIRED',
       needsInput: true,
       redirectUrl: '/account/orders',
       redirectLabel: isHi ? 'Apne Orders Dekhein' : 'Go to My Orders',
       text: isHi
-        ? 'Database se live return aur refund status check karne ke liye apna Order ID (jaise #FAB-ECOMM-...) likhein, ya Profile Orders page par jayein:\n[📦 Apne Orders pe Jayein](/account/orders)'
-        : 'Please enter your Order ID (e.g. #1024 or FAB-ECOMM-...) to check your live return and refund status from the database, or view all your orders on your Profile Orders page:\n[📦 Go to My Orders](/account/orders)',
+        ? 'Live return aur refund status check karne ke liye kripya apna Order ID (jaise #FAB-ECOMM-187286) neeche likhein:'
+        : 'Please enter your Order ID (e.g. #FAB-ECOMM-187286) below to check its live return and refund status from our database:',
     });
   } catch (err) {
     console.error('[checkReturnRefundStatus Error]:', err);
